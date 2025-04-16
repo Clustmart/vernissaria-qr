@@ -32,7 +32,7 @@ function vernissaria_custom_box_html($post) {
     $qr_code = get_post_meta($post->ID, '_vernissaria_qr_code', true);
     $dimensions = get_post_meta($post->ID, '_vernissaria_dimensions', true);
     $year = get_post_meta($post->ID, '_vernissaria_year', true);
-    
+
     echo '<p><label for="vernissaria_dimensions">Dimensions</label><br />';
     echo '<input type="text" name="vernissaria_dimensions" value="' . esc_attr($dimensions) . '" class="widefat" /></p>';
 
@@ -41,7 +41,8 @@ function vernissaria_custom_box_html($post) {
 
     echo '<p><label>QR Code</label><br />';
     if ($qr_code) {
-        echo '<img src="' . esc_url($qr_code) . '" width="450" height="450" />';
+        echo '<img src="' . esc_url($qr_code) . '" width="450" height="450" style="margin-bottom: 10px;" /><br />';
+        echo '<label><input type="checkbox" name="vernissaria_remove_qr" value="1" /> Remove QR Code</label>';
     } else {
         echo '<img src="" width="450" height="450" style="background:#f0f0f0;border:1px solid #ccc;" />';
     }
@@ -56,6 +57,9 @@ function vernissaria_save_postdata($post_id) {
     if (array_key_exists('vernissaria_year', $_POST)) {
         update_post_meta($post_id, '_vernissaria_year', sanitize_text_field($_POST['vernissaria_year']));
     }
+    if (!empty($_POST['vernissaria_remove_qr'])) {
+        delete_post_meta($post_id, '_vernissaria_qr_code');
+    }
 }
 add_action('save_post', 'vernissaria_save_postdata');
 
@@ -66,7 +70,7 @@ function vernissaria_generate_qr_on_publish($post_ID, $post) {
         if (!$existing_qr) {
             $url = get_permalink($post_ID);
             $response = wp_remote_get('https://vernissaria.qraft.link/generate?url=' . urlencode($url));
-            
+
             if (!is_wp_error($response) && wp_remote_retrieve_response_code($response) === 200) {
                 $body = wp_remote_retrieve_body($response);
                 $upload = wp_upload_bits("qr-{$post_ID}.png", null, $body);
@@ -78,4 +82,3 @@ function vernissaria_generate_qr_on_publish($post_ID, $post) {
     }
 }
 add_action('publish_post', 'vernissaria_generate_qr_on_publish', 10, 2);
-

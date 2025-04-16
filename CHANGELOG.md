@@ -1,12 +1,10 @@
 # Changelog
 
-### 1.1.0
+## 1.1.0
 16.04.2025
-- Added cURL-based QR code generation for improved reliability
-- Added "Force Generate QR" button for manual generation
-- Enhanced error logging and notification system
-- Multiple QR generation methods for better compatibility
+- Added checkbox to allow removal of QR code image if checked
+- QR code generation request only occurs if no QR code is associated with the post
 
-### 1.0.0
-15.04.2025
+## 1.0.0
+16.04.2025
 - Initial release
