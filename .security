@@ -1,0 +1,25 @@
+Security Issues
+1. External API Dependency
+Issue: The plugin relies on an external service (https://vernissaria.qraft.link/generate) to generate QR codes.
+Risk: If this external service is compromised or goes offline, your plugin functionality breaks or could potentially be used as an attack vector.
+Improvement: Consider implementing a local QR code generator using a WordPress-compatible library instead of relying on an external service. If you must use the external service, implement better validation of the returned data.
+2. Insufficient Response Validation
+Issue: The plugin checks only the first 8 bytes to verify if the response is a PNG.
+Risk: This minimal validation could allow malicious content to be saved as a PNG file.
+Improvement: Implement more thorough validation of the received image data and consider using WordPress functions like wp_check_filetype() for additional validation.
+3. Direct File Operations
+Issue: Using file_put_contents() directly for creating .htaccess files.
+Risk: This bypasses WordPress file operation abstraction which could cause permission issues.
+Improvement: Use WordPress Filesystem API for all file operations.
+4. Missing Rate Limiting
+Issue: No limits on how many QR codes can be generated.
+Risk: Could lead to abuse or excessive API calls.
+Improvement: Implement rate limiting for QR code generation.
+5. No Error Logging
+Issue: The plugin doesn't log failures or errors.
+Risk: Makes debugging difficult and could hide security issues.
+Improvement: Add proper error logging for failed API calls or file operations.
+6. Potential Query Performance Issues
+Issue: Some database queries load all posts with no limit.
+Risk: Could cause performance problems on sites with many posts.
+Improvement: Paginate results and use more efficient queries, especially in the dashboard widget.

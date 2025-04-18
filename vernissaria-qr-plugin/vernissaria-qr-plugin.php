@@ -3,7 +3,7 @@
  * Plugin Name: Vernissaria QR
  * Plugin URI: https://vernissaria.de
  * Description: Adds QR code, dimensions, and year fields to posts for art exhibitions.
- * Version: 1.2.0
+ * Version: 1.2.1
  * Author: Vernissaria
  * Author URI: https://vernissaria.de
  * License: GPLv2
@@ -224,45 +224,54 @@ function vernissaria_generate_qr_on_status_change($new_status, $old_status, $pos
         
         // Validate that the response is actually a PNG image
         if (substr($body, 0, 8) === "\x89PNG\r\n\x1a\n") {
-            // Determine upload directory and subfolder by domain
-            $upload_dir = wp_upload_dir();
-            $subdir = $upload_dir['basedir'] . '/qr-codes/';
+            return false;
+        }
 
-            // Create directory with proper permissions
-            if (!file_exists($subdir)) {
-                wp_mkdir_p($subdir);
-                
-                // Add .htaccess file for extra security in the QR codes directory
-                $htaccess_file = $upload_dir['basedir'] . '/qr-codes/.htaccess';
-                if (!file_exists($htaccess_file)) {
-                    $htaccess_content = "# Protect image files\n";
-                    $htaccess_content .= "<Files ~ '\.png$'>\n";
-                    $htaccess_content .= "    <IfModule mod_headers.c>\n";
-                    $htaccess_content .= "        Header set Content-Disposition 'inline'\n";
-                    $htaccess_content .= "    </IfModule>\n";
-                    $htaccess_content .= "</Files>\n";
-                    
-                    @file_put_contents($htaccess_file, $htaccess_content);
-                }
-            }
+        // Check file size limits
+        $max_size = 100 * 1024; // 100KB should be enough for a QR code
+        if (strlen($body) > $max_size) {
+            return false;
+        }
 
-            $filename = "qr-{$post->ID}.png";
-            $filepath = $subdir . '/' . $filename;
+        // Determine upload directory and subfolder by domain
+        $upload_dir = wp_upload_dir();
+        $subdir = $upload_dir['basedir'] . '/qr-codes/';
 
-            // Write file with WP filesystem API
-            global $wp_filesystem;
-            if (empty($wp_filesystem)) {
-                require_once(ABSPATH . 'wp-admin/includes/file.php');
-                WP_Filesystem();
-            }
+        // Create directory with proper permissions
+        if (!file_exists($subdir)) {
+            wp_mkdir_p($subdir);
             
-            if ($wp_filesystem) {
-                $wp_filesystem->put_contents($filepath, $body, FS_CHMOD_FILE);
+            // Add .htaccess file for extra security in the QR codes directory
+            $htaccess_file = $upload_dir['basedir'] . '/qr-codes/.htaccess';
+            if (!file_exists($htaccess_file)) {
+                $htaccess_content = "# Protect image files\n";
+                $htaccess_content .= "<Files ~ '\.png$'>\n";
+                $htaccess_content .= "    <IfModule mod_headers.c>\n";
+                $htaccess_content .= "        Header set Content-Disposition 'inline'\n";
+                $htaccess_content .= "    </IfModule>\n";
+                $htaccess_content .= "</Files>\n";
                 
-                $fileurl = $upload_dir['baseurl'] . '/qr-codes/' . $filename;
-                update_post_meta($post->ID, '_vernissaria_qr_code', esc_url_raw($fileurl));
+                @file_put_contents($htaccess_file, $htaccess_content);
             }
         }
+
+        $filename = "qr-{$post->ID}.png";
+        $filepath = $subdir . '/' . $filename;
+
+        // Write file with WP filesystem API
+        global $wp_filesystem;
+        if (empty($wp_filesystem)) {
+            require_once(ABSPATH . 'wp-admin/includes/file.php');
+            WP_Filesystem();
+        }
+        
+        if ($wp_filesystem) {
+            $wp_filesystem->put_contents($filepath, $body, FS_CHMOD_FILE);
+            
+            $fileurl = $upload_dir['baseurl'] . '/qr-codes/' . $filename;
+            update_post_meta($post->ID, '_vernissaria_qr_code', esc_url_raw($fileurl));
+        }
+        
     }
 }
 
