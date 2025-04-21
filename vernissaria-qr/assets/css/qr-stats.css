@@ -1,0 +1,161 @@
+/**
+ * Frontend styles for QR code statistics
+ */
+
+ .vernissaria-qr-stats {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+    max-width: 100%;
+    margin-bottom: 30px;
+}
+
+.vernissaria-qr-stats h3 {
+    margin-bottom: 20px;
+    font-size: 1.5em;
+}
+
+.vernissaria-qr-stats h4 {
+    margin: 20px 0 10px;
+    font-size: 1.2em;
+}
+
+/* Stats overview section */
+.stats-overview {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-around;
+    margin-bottom: 20px;
+}
+
+.stat-item {
+    text-align: center;
+    padding: 15px;
+    min-width: 100px;
+}
+
+.stat-value {
+    display: block;
+    font-size: 24px;
+    font-weight: bold;
+    color: #4e73df;
+}
+
+.stat-label {
+    display: block;
+    font-size: 14px;
+    color: #666;
+}
+
+.last-scanned {
+    text-align: center;
+    font-style: italic;
+    color: #666;
+    margin-bottom: 20px;
+}
+
+/* Chart containers */
+.charts-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-around;
+    margin-bottom: 20px;
+}
+
+.chart-wrapper {
+    width: 45%;
+    min-width: 300px;
+    margin: 10px;
+}
+
+/* Recent scans table */
+.qr-stats-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+    margin-bottom: 15px;
+}
+
+.qr-stats-table th, 
+.qr-stats-table td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+}
+
+.qr-stats-table th {
+    background-color: #f2f2f2;
+    font-weight: bold;
+}
+
+.qr-stats-table tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+.qr-stats-table tr:hover {
+    background-color: #f5f5f5;
+}
+
+/* Dark style */
+.vernissaria-qr-stats.dark {
+    background-color: #222;
+    color: #eee;
+    padding: 20px;
+    border-radius: 8px;
+}
+
+.vernissaria-qr-stats.dark .stat-value {
+    color: #6f8df7;
+}
+
+.vernissaria-qr-stats.dark .stat-label,
+.vernissaria-qr-stats.dark .last-scanned {
+    color: #aaa;
+}
+
+.vernissaria-qr-stats.dark .qr-stats-table th {
+    background-color: #333;
+    color: #fff;
+}
+
+.vernissaria-qr-stats.dark .qr-stats-table td {
+    border-color: #444;
+}
+
+.vernissaria-qr-stats.dark .qr-stats-table tr:nth-child(even) {
+    background-color: #2a2a2a;
+}
+
+.vernissaria-qr-stats.dark .qr-stats-table tr:hover {
+    background-color: #383838;
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+    .chart-wrapper {
+        width: 100%;
+        min-width: auto;
+    }
+    
+    .qr-stats-table {
+        font-size: 14px;
+    }
+    
+    .stat-value {
+        font-size: 20px;
+    }
+}
+
+@media (max-width: 480px) {
+    .qr-stats-table th, 
+    .qr-stats-table td {
+        padding: 5px;
+    }
+    
+    .vernissaria-qr-stats h3 {
+        font-size: 1.3em;
+    }
+    
+    .stat-item {
+        padding: 10px;
+        min-width: 80px;
+    }
+}

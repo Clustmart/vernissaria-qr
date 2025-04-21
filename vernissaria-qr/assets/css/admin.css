@@ -1,0 +1,61 @@
+/**
+ * Admin styles for Vernissaria QR
+ */
+
+/* Settings page */
+.vernissaria-shortcode-help {
+    background: #fff;
+    padding: 15px;
+    border: 1px solid #ccd0d4;
+    margin-top: 10px;
+}
+
+.vernissaria-shortcode-help code {
+    display: inline-block;
+    padding: 5px 10px;
+    background: #f0f0f1;
+    border-radius: 3px;
+    font-size: 13px;
+    margin: 5px 0;
+}
+
+.vernissaria-stats-section {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #ddd;
+}
+
+/* Meta box styles */
+#vernissaria_fields .inside {
+    padding: 0 12px 12px;
+}
+
+#vernissaria_fields img {
+    max-width: 100%;
+    height: auto;
+    border: 1px solid #ddd;
+}
+
+#vernissaria_fields label {
+    margin-bottom: 5px;
+    display: inline-block;
+}
+
+#vernissaria_fields .description {
+    font-style: italic;
+    color: #666;
+}
+
+/* Dashboard widget */
+#vernissaria_qr_widget .inside {
+    padding-bottom: 12px;
+}
+
+#vernissaria_qr_widget ul {
+    margin-left: 15px;
+    list-style: disc;
+}
+
+#vernissaria_qr_widget strong {
+    color: #2271b1;
+}
