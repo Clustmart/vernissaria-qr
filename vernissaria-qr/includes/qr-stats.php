@@ -36,9 +36,15 @@ function vernissaria_qr_stats_shortcode($atts) {
         return '<p>' . esc_html__('Error: No redirect key provided', 'vernissaria-qr') . '</p>';
     }
     
+    // Get the site domain
+    $site_domain = parse_url(get_site_url(), PHP_URL_HOST);
+    
     // API settings
     $api_url = get_option('vernissaria_api_url', 'https://vernissaria.qraft.link');
     $endpoint = $api_url . '/api/stats/' . $atts['redirect_key'];
+    
+    // Add domain parameter to the API request
+    $endpoint = add_query_arg('domain', $site_domain, $endpoint);
     
     // Make API request
     $response = wp_remote_get($endpoint);
@@ -234,3 +240,19 @@ function vernissaria_register_styles() {
     );
 }
 add_action('wp_enqueue_scripts', 'vernissaria_register_styles');
+
+/**
+ * Get the plugin domain for QR code statistics
+ * Uses either the option set in the admin or falls back to the site domain
+ */
+function vernissaria_get_domain() {
+    // Check if a specific domain is set in the plugin settings
+    $domain = get_option('vernissaria_domain', '');
+    
+    // If not set, use the site domain
+    if (empty($domain)) {
+        $domain = parse_url(get_site_url(), PHP_URL_HOST);
+    }
+    
+    return $domain;
+}

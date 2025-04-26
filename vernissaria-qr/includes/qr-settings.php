@@ -354,7 +354,7 @@ function vernissaria_dashboard_widget() {
 }
 
 /**
- * Visitor stats dashboard widget for last 30 days
+ * Visitor stats dashboard widget for last 30 days 
  */
 function vernissaria_visitor_stats_widget() {
     // Enqueue Chart.js
@@ -362,7 +362,8 @@ function vernissaria_visitor_stats_widget() {
 
     // Get API URL from settings
     $api_url = get_option('vernissaria_api_url', 'https://vernissaria.qraft.link');
-    $endpoint = $api_url . '/api/stats/daily?days=30';
+    $domain = parse_url($site_url, PHP_URL_HOST);
+    $endpoint = $api_url . '/api/stats/daily?days=30&domain=';    
     
     // Make API request
     $response = wp_remote_get($endpoint);
