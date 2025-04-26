@@ -29,7 +29,11 @@ function vernissaria_generate_qr_on_status_change($new_status, $old_status, $pos
     
     // Check if QR code already exists
     $existing_qr = get_post_meta($post->ID, '_vernissaria_qr_code', true);
-    if ($existing_qr) {
+    $existing_redirect_key = get_post_meta($post->ID, '_vernissaria_redirect_key', true);
+    
+    // If QR code exists, update the metadata in the API
+    if ($existing_qr && $existing_redirect_key) {
+        vernissaria_update_qr_metadata($post, $existing_redirect_key);
         return;
     }
     
@@ -109,6 +113,35 @@ function vernissaria_generate_qr_on_status_change($new_status, $old_status, $pos
     }
 }
 add_action('transition_post_status', 'vernissaria_generate_qr_on_status_change', 10, 3);
+
+/**
+ * Update QR code metadata when a post with existing QR code is updated
+ */
+function vernissaria_update_qr_metadata($post, $redirect_key) {
+    $api_url = get_option('vernissaria_api_url', 'https://vernissaria.qraft.link');
+    $api_endpoint = $api_url . '/redirect/' . $redirect_key . '/update';
+    
+    // Prepare the data to update
+    $data = array(
+        'label' => get_the_title($post->ID),
+        'campaign' => $post->post_type,
+        'metadata' => json_encode(array(
+            'post_id' => $post->ID,
+            'updated_at' => current_time('mysql')
+        ))
+    );
+    
+    $response = wp_remote_post($api_endpoint, array(
+        'body' => $data,
+        'headers' => array(
+            'Content-Type' => 'application/x-www-form-urlencoded'
+        )
+    ));
+    
+    if (is_wp_error($response)) {
+        error_log('Vernissaria: Failed to update QR metadata - ' . $response->get_error_message());
+    }
+}
 
 /**
  * Store the redirect key when generating QR codes
@@ -280,3 +313,31 @@ function vernissaria_add_admin_list_styles() {
     ';
 }
 add_action('admin_head', 'vernissaria_add_admin_list_styles');
+
+/**
+ * Update QR metadata when post is saved
+ */
+function vernissaria_update_on_save($post_id) {
+    // Verify this is not an autosave
+    if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) {
+        return;
+    }
+    
+    // Check user permissions
+    if (!current_user_can('edit_post', $post_id)) {
+        return;
+    }
+    
+    // Get the post object
+    $post = get_post($post_id);
+    
+    // Get existing QR data
+    $existing_qr = get_post_meta($post_id, '_vernissaria_qr_code', true);
+    $existing_redirect_key = get_post_meta($post_id, '_vernissaria_redirect_key', true);
+    
+    // If QR code exists, update the metadata
+    if ($existing_qr && $existing_redirect_key) {
+        vernissaria_update_qr_metadata($post, $existing_redirect_key);
+    }
+}
+add_action('save_post', 'vernissaria_update_on_save', 30);
