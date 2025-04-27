@@ -102,6 +102,7 @@ function vernissaria_custom_box_html($post) {
     <p>
         <label><?php echo esc_html__('QR Code', 'vernissaria-qr'); ?></label><br />
         <?php if ($qr_code) : ?>
+            <?php // phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedMedia -- QR code is not a standard attachment ?>
             <img src="<?php echo esc_url($qr_code); ?>" width="450" height="450" style="margin-bottom: 10px;" /><br />
             
             <?php if ($scan_count !== false) : ?>
@@ -148,7 +149,8 @@ function vernissaria_custom_box_html($post) {
     $content = apply_filters('vernissaria_qr_metabox_content', $content, $post->ID);
     
     // Output the filtered content
-    echo $content;
+    echo wp_kses_post($content);
+
 }
 
 /**
@@ -156,8 +158,9 @@ function vernissaria_custom_box_html($post) {
  */
 function vernissaria_save_postdata($post_id) {
     // Check if nonce is set and valid
+    // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Nonce verification doesn't require sanitization
     if (!isset($_POST['vernissaria_meta_box_nonce']) || 
-        !wp_verify_nonce($_POST['vernissaria_meta_box_nonce'], 'vernissaria_meta_box')) {
+       !wp_verify_nonce(wp_unslash($_POST['vernissaria_meta_box_nonce']), 'vernissaria_meta_box')) {
         return;
     }
     
@@ -176,7 +179,7 @@ function vernissaria_save_postdata($post_id) {
         update_post_meta(
             $post_id, 
             '_vernissaria_dimensions', 
-            sanitize_text_field($_POST['vernissaria_dimensions'])
+            sanitize_text_field(wp_unslash($_POST['vernissaria_dimensions']))
         );
     }
     
@@ -185,7 +188,7 @@ function vernissaria_save_postdata($post_id) {
         update_post_meta(
             $post_id, 
             '_vernissaria_year', 
-            sanitize_text_field($_POST['vernissaria_year'])
+            sanitize_text_field(wp_unslash($_POST['vernissaria_year']))
         );
     }
     
@@ -230,6 +233,7 @@ function vernissaria_render_qr_list_page() {
     $total_scans = 0;
 
     foreach ($enabled_types as $type) {
+        // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- Required to find posts with QR codes
         $query = new WP_Query([
             'post_type' => $type,
             'meta_query' => [[
@@ -310,7 +314,7 @@ function vernissaria_render_qr_list_page() {
         echo '<p><strong>' . esc_html__('Total QR Codes', 'vernissaria-qr') . ':</strong> ' . intval($total_count) . '</p>';
         echo '<p><strong>' . esc_html__('Total Scans', 'vernissaria-qr') . ':</strong> ' . intval($total_scans) . '</p>';
         echo '<p><strong>' . esc_html__('Average Scans per QR Code', 'vernissaria-qr') . ':</strong> ' . 
-            ($total_count > 0 ? round($total_scans / $total_count, 1) : 0) . '</p>';
+        esc_html($total_count > 0 ? round($total_scans / $total_count, 1) : 0) . '</p>';
         echo '</div>';
     }
 

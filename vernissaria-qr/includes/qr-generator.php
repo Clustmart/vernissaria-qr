@@ -10,6 +10,24 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+function vernissaria_log($message, $level = 'info') {
+    if (!defined('WP_DEBUG') || !WP_DEBUG) {
+        return;
+    }
+    
+    $prefix = '[Vernissaria QR] ';
+    switch ($level) {
+        case 'error':
+            vernissaria_log($prefix . 'ERROR: ' . $message);
+            break;
+        case 'warning':
+            vernissaria_log($prefix . 'WARNING: ' . $message);
+            break;
+        default:
+            vernissaria_log($prefix . $message);
+    }
+}
+
 /**
  * Generate QR code when post status changes to published
  */
@@ -112,18 +130,18 @@ function vernissaria_generate_qr_on_status_change($new_status, $old_status, $pos
                     update_post_meta($post->ID, '_vernissaria_redirect_key', $redirect_key);
                     
                     // Log successful generation
-                    error_log('Vernissaria: Successfully generated QR code for post ID ' . $post->ID . ' with redirect key ' . $redirect_key);
+                    vernissaria_log('Vernissaria: Successfully generated QR code for post ID ' . $post->ID . ' with redirect key ' . $redirect_key);
                 }
             }
         }
     } else {
         // Log error
         if (is_wp_error($response)) {
-            error_log('Vernissaria: Failed to generate QR code - ' . $response->get_error_message());
+            vernissaria_log('Vernissaria: Failed to generate QR code - ' . $response->get_error_message());
         } else {
             $response_code = wp_remote_retrieve_response_code($response);
             $response_body = wp_remote_retrieve_body($response);
-            error_log('Vernissaria: Failed to generate QR code - Response code: ' . $response_code . ', Body: ' . $response_body);
+            vernissaria_log('Vernissaria: Failed to generate QR code - Response code: ' . $response_code . ', Body: ' . $response_body);
         }
     }
 }
@@ -147,7 +165,8 @@ function vernissaria_update_qr_metadata($post, $redirect_key) {
     );
     
     // Make sure to log the data being sent for debugging
-    error_log('Vernissaria: Updating metadata for redirect_key ' . $redirect_key . ' with data: ' . print_r($data, true));
+    vernissaria_log('Vernissaria: Updating metadata for redirect_key ' . $redirect_key . ' with data: ' . wp_json_encode($data));
+
     
     // WordPress doesn't natively support PATCH, so we use a custom approach
     $response = wp_remote_request($api_endpoint, array(
@@ -160,15 +179,15 @@ function vernissaria_update_qr_metadata($post, $redirect_key) {
     ));
     
     if (is_wp_error($response)) {
-        error_log('Vernissaria: Failed to update QR metadata - ' . $response->get_error_message());
+        vernissaria_log('Vernissaria: Failed to update QR metadata - ' . $response->get_error_message());
     } else {
         $response_code = wp_remote_retrieve_response_code($response);
         $response_body = wp_remote_retrieve_body($response);
         
         if ($response_code !== 200) {
-            error_log('Vernissaria: Failed to update QR metadata - Response code: ' . $response_code . ', Body: ' . $response_body);
+            vernissaria_log('Vernissaria: Failed to update QR metadata - Response code: ' . $response_code . ', Body: ' . $response_body);
         } else {
-            error_log('Vernissaria: Successfully updated QR metadata for redirect_key: ' . $redirect_key);
+            vernissaria_log('Vernissaria: Successfully updated QR metadata for redirect_key: ' . $redirect_key);
         }
     }
 }
@@ -197,7 +216,7 @@ function vernissaria_update_on_save($post_id) {
     // If QR code exists, update the metadata
     if ($existing_qr && $existing_redirect_key) {
         // Log for debugging
-        error_log('Vernissaria: Updating metadata for post ID ' . $post_id . ' with redirect key ' . $existing_redirect_key);
+        vernissaria_log('Vernissaria: Updating metadata for post ID ' . $post_id . ' with redirect key ' . $existing_redirect_key);
         vernissaria_update_qr_metadata($post, $existing_redirect_key);
     }
 }

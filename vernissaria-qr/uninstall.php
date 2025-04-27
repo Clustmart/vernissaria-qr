@@ -13,7 +13,9 @@ if (!defined('WP_UNINSTALL_PLUGIN')) {
 
 // Remove all post meta created by this plugin
 global $wpdb;
+// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Direct query required for uninstallation cleanup
 $wpdb->query("DELETE FROM {$wpdb->postmeta} WHERE meta_key LIKE '_vernissaria_%'");
+
 
 // Remove all plugin options
 delete_option('vernissaria_enabled_post_types');
@@ -24,7 +26,9 @@ delete_option('vernissaria_qr_stats_version');
 delete_option('vernissaria_domain');
 
 // Clean up all plugin-specific transients
+// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Direct query required for uninstallation cleanup
 $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_vernissaria_qr_%' OR option_name LIKE '_transient_timeout_vernissaria_qr_%'");
+
 
 // Clean up scheduled events if any
 wp_clear_scheduled_hook('vernissaria_cleanup_transients');

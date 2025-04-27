@@ -37,7 +37,8 @@ function vernissaria_qr_stats_shortcode($atts) {
     }
     
     // Get the site domain
-    $site_domain = parse_url(get_site_url(), PHP_URL_HOST);
+    $site_domain = wp_parse_url(get_site_url(), PHP_URL_HOST);
+
     
     // API settings
     $api_url = get_option('vernissaria_api_url', 'https://vernissaria.qraft.link');
@@ -74,7 +75,13 @@ function vernissaria_qr_stats_shortcode($atts) {
     
     // Enqueue scripts for charts if needed
     if ($atts['show_chart'] === 'yes') {
-        wp_enqueue_script('vernissaria-chart-js', 'https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js', array(), '3.7.1', true);
+        wp_enqueue_script(
+            'vernissaria-chart-js',
+            VERNISSARIA_QR_URL . 'assets/js/chart.min.js',
+            array(),
+            '3.7.1',
+            true
+        );
     }
     
     // Generate unique IDs for charts
@@ -251,7 +258,8 @@ function vernissaria_get_domain() {
     
     // If not set, use the site domain
     if (empty($domain)) {
-        $domain = parse_url(get_site_url(), PHP_URL_HOST);
+        $domain = wp_parse_url(get_site_url(), PHP_URL_HOST);
+
     }
     
     return $domain;

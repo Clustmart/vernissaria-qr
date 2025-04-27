@@ -53,6 +53,7 @@ add_action('admin_menu', 'vernissaria_add_settings_page');
  * Register settings
  */
 function vernissaria_register_settings() {
+    // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Settings API handles sanitization
     register_setting(
         'vernissaria_settings',
         'vernissaria_enabled_post_types',
@@ -63,6 +64,7 @@ function vernissaria_register_settings() {
         ]
     );
     
+    // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Settings API handles sanitization
     register_setting(
         'vernissaria_settings',
         'vernissaria_show_dashboard_widget',
@@ -72,6 +74,7 @@ function vernissaria_register_settings() {
         ]
     );
     
+    // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Settings API handles sanitization
     register_setting(
         'vernissaria_settings',
         'vernissaria_show_visitor_stats_widget',
@@ -81,6 +84,7 @@ function vernissaria_register_settings() {
         ]
     );
     
+    // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Settings API handles sanitization
     register_setting(
         'vernissaria_settings',
         'vernissaria_api_url',
@@ -180,9 +184,9 @@ function vernissaria_post_types_field_callback() {
     
     echo '<fieldset>';
     foreach ($post_types as $slug => $post_type) {
-        $checked = in_array($slug, $enabled_types) ? 'checked' : '';
-        echo '<label style="display: block; margin-bottom: 5px;">';
-        echo '<input type="checkbox" name="vernissaria_enabled_post_types[]" value="' . esc_attr($slug) . '" ' . $checked . '> ';
+         echo '<label style="display: block; margin-bottom: 5px;">';
+        echo '<input type="checkbox" name="vernissaria_enabled_post_types[]" value="' . esc_attr($slug) . '" ' . checked(in_array($slug, $enabled_types), true, false) . '> ';
+
         echo esc_html($post_type->labels->name);
         echo '</label>';
     }
@@ -311,6 +315,7 @@ function vernissaria_dashboard_widget() {
 
     // Query each post type and count QR codes
     foreach ($enabled_types as $type) {
+        // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- Required to find posts with QR codes
         $query = new WP_Query([
             'post_type' => $type,
             'meta_key' => '_vernissaria_qr_code',
@@ -359,12 +364,17 @@ function vernissaria_dashboard_widget() {
  */
 function vernissaria_visitor_stats_widget() {
     // Enqueue Chart.js
-    wp_enqueue_script('vernissaria-chart-js', 'https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js', array(), '3.7.1', true);
+    wp_enqueue_script(
+        'vernissaria-chart-js',
+        VERNISSARIA_QR_URL . 'assets/js/chart.min.js',
+        array(),
+        '3.7.1',
+        true
+    );
 
     // Get API URL from settings
     $api_url = get_option('vernissaria_api_url', 'https://vernissaria.qraft.link');
-    $site_url = get_site_url();
-    $domain = parse_url($site_url, PHP_URL_HOST);
+    $domain = wp_parse_url(get_site_url(), PHP_URL_HOST);
     $endpoint = $api_url . '/stats/daily?days=30&domain='. urlencode($domain);
     
     
