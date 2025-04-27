@@ -217,6 +217,7 @@ function vernissaria_api_url_field_callback() {
     $api_url = get_option('vernissaria_api_url', 'https://vernissaria.qraft.link');
     echo '<input type="url" name="vernissaria_api_url" value="' . esc_attr($api_url) . '" class="regular-text">';
     echo '<p class="description">' . esc_html__('The URL of the QR code generation API.', 'vernissaria-qr') . '</p>';
+    echo '<p style="color: #dc3232; font-weight: bold;">' . esc_html__('WARNING: Changing this URL may break plugin functionality. Only modify if you are using a custom API installation and know what you are doing.', 'vernissaria-qr') . '</p>';
 }
 
 /**
