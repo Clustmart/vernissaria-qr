@@ -19,12 +19,6 @@
     margin: 5px 0;
 }
 
-.vernissaria-stats-section {
-    margin-top: 10px;
-    padding-top: 10px;
-    border-top: 1px solid #ddd;
-}
-
 /* Meta box styles */
 #vernissaria_fields .inside {
     padding: 0 12px 12px;
@@ -58,4 +52,93 @@
 
 #vernissaria_qr_widget strong {
     color: #2271b1;
+}
+
+/* QR List Page Styles */
+.vernissaria-qr-list {
+    margin-top: 20px;
+}
+
+.vernissaria-qr-list table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+.vernissaria-qr-list th,
+.vernissaria-qr-list td {
+    padding: 8px 12px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+.vernissaria-qr-list th {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #aaa;
+}
+
+.vernissaria-qr-list tr:hover {
+    background-color: #f5f5f5;
+}
+
+.vernissaria-qr-count {
+    background: #f0f7ff;
+    border-radius: 3px;
+    padding: 3px 6px;
+    font-weight: bold;
+    color: #4e73df;
+}
+
+.vernissaria-qr-na {
+    color: #999;
+    font-style: italic;
+}
+
+.vernissaria-qr-summary {
+    margin-top: 30px;
+    padding: 15px;
+    background: #f8f9fa;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+}
+
+/* QR Metabox Styles */
+.vernissaria-qr-scan-count {
+    margin-bottom: 10px;
+    padding: 8px;
+    background: #f8f9fa;
+    border-left: 4px solid #4e73df;
+}
+
+.vernissaria-stats-section {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #ddd;
+}
+
+/* Dashboard Widget Styles */
+.vernissaria-stats-summary .stats-overview {
+    display: flex;
+    justify-content: space-between;
+}
+
+.vernissaria-stats-summary .stats-overview > div {
+    text-align: center;
+}
+
+/* Admin Column Styles */
+.column-vernissaria_qr,
+.column-vernissaria_scans {
+    width: 80px;
+    text-align: center !important;
+}
+
+.vernissaria-scan-count {
+    background: #f0f7ff;
+    border-radius: 3px;
+    padding: 3px 8px;
+    font-weight: bold;
+    color: #4e73df;
+    display: inline-block;
+    min-width: 30px;
 }

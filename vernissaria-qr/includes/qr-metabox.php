@@ -44,7 +44,7 @@ function vernissaria_get_qr_scan_count($redirect_key) {
     
     // Make API request
     $api_url = get_option('vernissaria_api_url', 'https://vernissaria.qraft.link');
-    $endpoint = $api_url . '/api/stats/' . $redirect_key;
+    $endpoint = $api_url . '/qr/' . $redirect_key;
     
     $response = wp_remote_get($endpoint);
     
@@ -222,47 +222,9 @@ add_action('admin_menu', 'vernissaria_add_list_page');
  * Render QR code list page with scan counts
  */
 function vernissaria_render_qr_list_page() {
-    // Add styles for the list page
-    ?>
-    <style>
-        .vernissaria-qr-list {
-            margin-top: 20px;
-        }
-        .vernissaria-qr-list table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
-        }
-        .vernissaria-qr-list th, 
-        .vernissaria-qr-list td {
-            padding: 8px 12px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-        }
-        .vernissaria-qr-list th {
-            background-color: #f8f9fa;
-            border-bottom: 1px solid #aaa;
-        }
-        .vernissaria-qr-list tr:hover {
-            background-color: #f5f5f5;
-        }
-        .vernissaria-qr-count {
-            background: #f0f7ff;
-            border-radius: 3px;
-            padding: 3px 6px;
-            font-weight: bold;
-            color: #4e73df;
-        }
-        .vernissaria-qr-na {
-            color: #999;
-            font-style: italic;
-        }
-    </style>
-    <?php
-
     echo '<div class="wrap"><h1>' . esc_html__('Posts with QR Codes', 'vernissaria-qr') . '</h1>';
     echo '<p>' . esc_html__('Overview of all content items with generated QR codes and their scan statistics.', 'vernissaria-qr') . '</p>';
-
+   
     $enabled_types = vernissaria_get_enabled_post_types();
     $total_count = 0;
     $total_scans = 0;

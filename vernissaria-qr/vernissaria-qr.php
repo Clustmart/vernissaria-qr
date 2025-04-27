@@ -61,12 +61,23 @@ register_activation_hook(__FILE__, 'vernissaria_qr_activate');
 /**
  * Enqueue admin styles
  */
-function vernissaria_qr_admin_styles() {
-    wp_enqueue_style(
-        'vernissaria-qr-admin',
-        VERNISSARIA_QR_URL . 'assets/css/admin.css',
-        array(),
-        VERNISSARIA_QR_VERSION
+function vernissaria_qr_admin_styles($hook) {
+    // Only load on our plugin pages
+    $plugin_pages = array(
+        'post.php',
+        'post-new.php',
+        'edit.php',
+        'settings_page_vernissaria-qr',
+        'dashboard_page_vernissaria-qr-list'
     );
+    
+    if (in_array($hook, $plugin_pages) || strpos($hook, 'vernissaria-qr') !== false) {
+        wp_enqueue_style(
+            'vernissaria-qr-admin',
+            VERNISSARIA_QR_URL . 'assets/css/admin.css',
+            array(),
+            VERNISSARIA_QR_VERSION
+        );
+    }
 }
 add_action('admin_enqueue_scripts', 'vernissaria_qr_admin_styles');

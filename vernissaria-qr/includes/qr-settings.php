@@ -364,7 +364,7 @@ function vernissaria_visitor_stats_widget() {
     $api_url = get_option('vernissaria_api_url', 'https://vernissaria.qraft.link');
     $site_url = get_site_url();
     $domain = parse_url($site_url, PHP_URL_HOST);
-    $endpoint = $api_url . '/api/stats/daily?days=30&domain='. urlencode($domain);
+    $endpoint = $api_url . '/stats/daily?days=30&domain='. urlencode($domain);
     
     
     // Make API request

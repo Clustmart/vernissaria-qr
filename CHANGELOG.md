@@ -1,7 +1,32 @@
 # Changelog
 
-[1.3.0] - 21-04-2025
+[1.3.0] - 27-04-2025
 
+## Changed
+Udated all four WordPress plugin files to match the new API endpoints:
+qr-generator.php:
+
+Changed QR generation endpoint from /generate to /qr (with POST request)
+Changed metadata update endpoint from /r/{redirect_key}/update to /qr/{redirect_key} (with PATCH request)
+Modified the request to use proper POST data instead of URL parameters for QR generation
+
+qr-metabox.php:
+
+Changed the stats endpoint from /api/stats/{redirect_key} to /qr/{redirect_key}
+
+qr-settings.php:
+
+Changed the daily stats endpoint from /api/stats/daily to /stats/daily
+
+qr-stats.php:
+
+Changed the stats endpoint from /api/stats/{redirect_key} to /qr/{redirect_key}
+
+The key improvements:
+
+All endpoints now follow RESTful conventions
+Consistent URL structure with proper resource grouping (/qr/* for QR operations, /stats/* for statistics)
+Proper HTTP methods (POST for creation, PATCH for updates, GET for retrieval)
 
 [1.3.0] - 21-04-2025
 

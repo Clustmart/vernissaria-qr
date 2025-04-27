@@ -41,7 +41,7 @@ function vernissaria_qr_stats_shortcode($atts) {
     
     // API settings
     $api_url = get_option('vernissaria_api_url', 'https://vernissaria.qraft.link');
-    $endpoint = $api_url . '/api/stats/' . $atts['redirect_key'];
+    $endpoint = $api_url . '/qr/' . $atts['redirect_key'];
     
     // Add domain parameter to the API request
     $endpoint = add_query_arg('domain', $site_domain, $endpoint);
