@@ -87,7 +87,7 @@ function vernissaria_generate_qr_on_status_change($new_status, $old_status, $pos
         if (substr($body, 0, 8) === "\x89PNG\r\n\x1a\n") {
             // Determine upload directory and subfolder by domain
             $upload_dir = wp_upload_dir();
-            $subdir = $upload_dir['basedir'] . '/qr-codes/';
+            $subdir = $upload_dir['basedir'] . '/qr-codes';
 
             // Create directory with proper permissions
             if (!file_exists($subdir)) {
