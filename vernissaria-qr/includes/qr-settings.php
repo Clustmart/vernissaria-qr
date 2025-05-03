@@ -270,8 +270,16 @@ function vernissaria_render_settings_page() {
         return;
     }
     
+    // Verify nonce for settings-updated parameter
+    $settings_updated = false;
+    if (isset($_GET['settings-updated']) && 
+        isset($_GET['_wpnonce']) && 
+        wp_verify_nonce(sanitize_key($_GET['_wpnonce']), 'options-options')) {
+        $settings_updated = true;
+    }
+    
     // Show settings saved message
-    if (isset($_GET['settings-updated'])) {
+    if ($settings_updated) {
         add_settings_error(
             'vernissaria_messages',
             'vernissaria_message',
