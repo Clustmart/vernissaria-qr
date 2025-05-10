@@ -78,6 +78,20 @@ function vernissaria_custom_box_html($post) {
     $year = get_post_meta($post->ID, '_vernissaria_year', true);
     $redirect_key = get_post_meta($post->ID, '_vernissaria_redirect_key', true);
     
+    // Get the QR label and campaign values (new)
+    $qr_label = get_post_meta($post->ID, '_vernissaria_qr_label', true);
+    $qr_campaign = get_post_meta($post->ID, '_vernissaria_qr_campaign', true);
+    
+    // Default the label to post title if not set
+    if (empty($qr_label)) {
+        $qr_label = get_the_title($post->ID);
+    }
+    
+    // Default the campaign to post type if not set
+    if (empty($qr_campaign)) {
+        $qr_campaign = $post->post_type;
+    }
+    
     // Get scan count if we have a redirect key
     $scan_count = false;
     if ($redirect_key) {
@@ -126,6 +140,23 @@ function vernissaria_custom_box_html($post) {
         'code' => array(),
     );
     ?>
+    <!-- Add new QR metadata fields at the top -->
+    <p>
+        <label for="vernissaria_qr_label"><?php echo esc_html__('QR Label', 'vernissaria-qr'); ?></label><br />
+        <input type="text" id="vernissaria_qr_label" name="vernissaria_qr_label" 
+               value="<?php echo esc_attr($qr_label); ?>" class="widefat" 
+               placeholder="<?php echo esc_attr__('Used as QR code title', 'vernissaria-qr'); ?>" />
+        <small class="description"><?php echo esc_html__('This will be sent to the QR code API', 'vernissaria-qr'); ?></small>
+    </p>
+
+    <p>
+        <label for="vernissaria_qr_campaign"><?php echo esc_html__('QR Campaign', 'vernissaria-qr'); ?></label><br />
+        <input type="text" id="vernissaria_qr_campaign" name="vernissaria_qr_campaign" 
+               value="<?php echo esc_attr($qr_campaign); ?>" class="widefat" 
+               placeholder="<?php echo esc_attr__('Campaign or category', 'vernissaria-qr'); ?>" />
+        <small class="description"><?php echo esc_html__('For grouping QR codes in statistics', 'vernissaria-qr'); ?></small>
+    </p>
+
     <p>
         <label for="vernissaria_dimensions"><?php echo esc_html__('Dimensions', 'vernissaria-qr'); ?></label><br />
         <input type="text" id="vernissaria_dimensions" name="vernissaria_dimensions" 
@@ -157,10 +188,28 @@ function vernissaria_custom_box_html($post) {
                 </div>
             <?php endif; ?>
             
+            <?php
+            // Display the current QR target URL if available
+            $original_url = get_post_meta($post->ID, '_vernissaria_original_url', true);
+            if ($original_url) : 
+            ?>
+            <div class="vernissaria-qr-target" style="margin-bottom: 10px; padding: 8px; background: #f8f9fa; border-left: 4px solid #46b450;">
+                <strong><?php echo esc_html__('QR Target URL', 'vernissaria-qr'); ?>:</strong><br>
+                <span style="font-size: 12px; word-break: break-all;"><?php echo esc_url($original_url); ?></span>
+            </div>
+            <?php endif; ?>
+            
             <label>
                 <input type="checkbox" name="vernissaria_remove_qr" value="1" />
                 <?php echo esc_html__('Remove QR Code', 'vernissaria-qr'); ?>
             </label>
+            
+            <div style="margin-top: 10px;">
+                <button type="button" class="button button-secondary" id="vernissaria_update_qr_now">
+                    <?php echo esc_html__('Update QR Info Now', 'vernissaria-qr'); ?>
+                </button>
+                <span id="vernissaria_update_qr_status" style="display:none; margin-left: 5px; font-style: italic;"></span>
+            </div>
             
             <?php if ($redirect_key) : ?>
                 <div class="vernissaria-stats-section" style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #ddd;">
@@ -178,6 +227,54 @@ function vernissaria_custom_box_html($post) {
             </div>
         <?php endif; ?>
     </p>
+    
+    <!-- Add JavaScript for the update button -->
+    <script type="text/javascript">
+    jQuery(document).ready(function($) {
+        $('#vernissaria_update_qr_now').on('click', function() {
+            const button = $(this);
+            const status = $('#vernissaria_update_qr_status');
+            
+            // Get values from form
+            const label = $('#vernissaria_qr_label').val();
+            const campaign = $('#vernissaria_qr_campaign').val();
+            const redirectKey = '<?php echo esc_js($redirect_key); ?>';
+            
+            button.prop('disabled', true);
+            status.text('<?php echo esc_js(__('Updating...', 'vernissaria-qr')); ?>').show();
+            
+            // Make AJAX request to update QR info
+            $.ajax({
+                url: ajaxurl,
+                type: 'POST',
+                data: {
+                    action: 'vernissaria_update_qr_ajax',
+                    nonce: '<?php echo wp_create_nonce('vernissaria_update_qr_ajax'); ?>',
+                    post_id: <?php echo intval($post->ID); ?>,
+                    redirect_key: redirectKey,
+                    label: label,
+                    campaign: campaign
+                },
+                success: function(response) {
+                    if (response.success) {
+                        status.text('<?php echo esc_js(__('Successfully updated!', 'vernissaria-qr')); ?>');
+                        // Set a timeout to hide the status message
+                        setTimeout(function() {
+                            status.fadeOut();
+                        }, 3000);
+                    } else {
+                        status.text('<?php echo esc_js(__('Error updating QR info', 'vernissaria-qr')); ?>');
+                    }
+                    button.prop('disabled', false);
+                },
+                error: function() {
+                    status.text('<?php echo esc_js(__('Error updating QR info', 'vernissaria-qr')); ?>');
+                    button.prop('disabled', false);
+                }
+            });
+        });
+    });
+    </script>
     <?php
 }
 
@@ -218,10 +315,29 @@ function vernissaria_save_postdata($post_id) {
         );
     }
     
+    // Save QR label (new)
+    if (array_key_exists('vernissaria_qr_label', $_POST)) {
+        update_post_meta(
+            $post_id, 
+            '_vernissaria_qr_label', 
+            sanitize_text_field(wp_unslash($_POST['vernissaria_qr_label']))
+        );
+    }
+    
+    // Save QR campaign (new)
+    if (array_key_exists('vernissaria_qr_campaign', $_POST)) {
+        update_post_meta(
+            $post_id, 
+            '_vernissaria_qr_campaign', 
+            sanitize_text_field(wp_unslash($_POST['vernissaria_qr_campaign']))
+        );
+    }
+    
     // Remove QR code if requested
     if (!empty($_POST['vernissaria_remove_qr'])) {
         delete_post_meta($post_id, '_vernissaria_qr_code');
         delete_post_meta($post_id, '_vernissaria_redirect_key');
+        delete_post_meta($post_id, '_vernissaria_original_url');
         
         // Clear any transients
         $redirect_key = get_post_meta($post_id, '_vernissaria_redirect_key', true);
@@ -229,8 +345,67 @@ function vernissaria_save_postdata($post_id) {
             delete_transient('vernissaria_qr_count_' . $redirect_key);
         }
     }
+    
+    // If the post is being published, update QR metadata if QR code already exists
+    if ('publish' === get_post_status($post_id)) {
+        $redirect_key = get_post_meta($post_id, '_vernissaria_redirect_key', true);
+        if ($redirect_key) {
+            $post = get_post($post_id);
+            vernissaria_update_qr_metadata($post, $redirect_key);
+        }
+    }
 }
 add_action('save_post', 'vernissaria_save_postdata');
+
+/**
+ * AJAX handler for updating QR info
+ */
+function vernissaria_update_qr_ajax() {
+    // Check nonce
+    if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_key($_POST['nonce']), 'vernissaria_update_qr_ajax')) {
+        wp_send_json_error('Invalid nonce');
+        return;
+    }
+    
+    // Check permission
+    $post_id = isset($_POST['post_id']) ? intval($_POST['post_id']) : 0;
+    if (!current_user_can('edit_post', $post_id)) {
+        wp_send_json_error('Permission denied');
+        return;
+    }
+    
+    $redirect_key = isset($_POST['redirect_key']) ? sanitize_text_field(wp_unslash($_POST['redirect_key'])) : '';
+    if (empty($redirect_key)) {
+        wp_send_json_error('No redirect key provided');
+        return;
+    }
+    
+    // Get post data
+    $post = get_post($post_id);
+    if (!$post) {
+        wp_send_json_error('Post not found');
+        return;
+    }
+    
+    // Update label and campaign meta values
+    if (isset($_POST['label'])) {
+        update_post_meta($post_id, '_vernissaria_qr_label', sanitize_text_field(wp_unslash($_POST['label'])));
+    }
+    
+    if (isset($_POST['campaign'])) {
+        update_post_meta($post_id, '_vernissaria_qr_campaign', sanitize_text_field(wp_unslash($_POST['campaign'])));
+    }
+    
+    // Call the update function
+    $result = vernissaria_update_qr_metadata($post, $redirect_key);
+    
+    if ($result) {
+        wp_send_json_success();
+    } else {
+        wp_send_json_error();
+    }
+}
+add_action('wp_ajax_vernissaria_update_qr_ajax', 'vernissaria_update_qr_ajax');
 
 /**
  * Admin list filter page (custom admin page)
@@ -275,10 +450,12 @@ function vernissaria_render_qr_list_page() {
             
             echo '<div class="vernissaria-qr-list">';
             echo '<h2>' . esc_html($type_name) . '</h2>';
-            echo '<table>';
+            echo '<table class="wp-list-table widefat fixed striped">';
             echo '<thead>';
             echo '<tr>';
             echo '<th>' . esc_html__('Title', 'vernissaria-qr') . '</th>';
+            echo '<th>' . esc_html__('Label', 'vernissaria-qr') . '</th>';
+            echo '<th>' . esc_html__('Campaign', 'vernissaria-qr') . '</th>';
             echo '<th>' . esc_html__('Dimensions', 'vernissaria-qr') . '</th>';
             echo '<th>' . esc_html__('Year', 'vernissaria-qr') . '</th>';
             echo '<th>' . esc_html__('Scan Count', 'vernissaria-qr') . '</th>';
@@ -296,6 +473,8 @@ function vernissaria_render_qr_list_page() {
                 $dimensions = get_post_meta($post_id, '_vernissaria_dimensions', true);
                 $year = get_post_meta($post_id, '_vernissaria_year', true);
                 $redirect_key = get_post_meta($post_id, '_vernissaria_redirect_key', true);
+                $qr_label = get_post_meta($post_id, '_vernissaria_qr_label', true);
+                $qr_campaign = get_post_meta($post_id, '_vernissaria_qr_campaign', true);
                 
                 // Get scan count
                 $scan_count = 0;
@@ -309,6 +488,8 @@ function vernissaria_render_qr_list_page() {
                 
                 echo '<tr>';
                 echo '<td>' . esc_html(get_the_title()) . '</td>';
+                echo '<td>' . ($qr_label ? esc_html($qr_label) : '<span class="vernissaria-qr-na">' . esc_html__('N/A', 'vernissaria-qr') . '</span>') . '</td>';
+                echo '<td>' . ($qr_campaign ? esc_html($qr_campaign) : '<span class="vernissaria-qr-na">' . esc_html__('N/A', 'vernissaria-qr') . '</span>') . '</td>';
                 echo '<td>' . ($dimensions ? esc_html($dimensions) : '<span class="vernissaria-qr-na">' . esc_html__('N/A', 'vernissaria-qr') . '</span>') . '</td>';
                 echo '<td>' . ($year ? esc_html($year) : '<span class="vernissaria-qr-na">' . esc_html__('N/A', 'vernissaria-qr') . '</span>') . '</td>';
                 
@@ -347,3 +528,36 @@ function vernissaria_render_qr_list_page() {
     echo '</div>';
     wp_reset_postdata();
 }
+
+/**
+ * Set defaults for QR label and campaign when publishing
+ */
+function vernissaria_set_qr_defaults($post_id) {
+    // Skip if this is an autosave or not a main post
+    if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) {
+        return;
+    }
+    
+    // Only proceed for enabled post types
+    $post_type = get_post_type($post_id);
+    $enabled_types = vernissaria_get_enabled_post_types();
+    if (!in_array($post_type, $enabled_types)) {
+        return;
+    }
+    
+    // Only proceed if the post is published
+    if (get_post_status($post_id) !== 'publish') {
+        return;
+    }
+    
+    // Set default label if it doesn't exist
+    if (!get_post_meta($post_id, '_vernissaria_qr_label', true)) {
+        update_post_meta($post_id, '_vernissaria_qr_label', get_the_title($post_id));
+    }
+    
+    // Set default campaign if it doesn't exist
+    if (!get_post_meta($post_id, '_vernissaria_qr_campaign', true)) {
+        update_post_meta($post_id, '_vernissaria_qr_campaign', $post_type);
+    }
+}
+add_action('save_post', 'vernissaria_set_qr_defaults', 10);

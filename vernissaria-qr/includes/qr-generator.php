@@ -31,7 +31,8 @@ function vernissaria_log($message, $level = 'info') {
 /**
  * Generate QR code when post status changes to published
  */
-function vernissaria_generate_qr_on_status_change($new_status, $old_status, $post) {
+
+ function vernissaria_generate_qr_on_status_change($new_status, $old_status, $post) {
     // Only proceed if the post is being published (new status is 'publish')
     if ($new_status !== 'publish') {
         return;
@@ -60,21 +61,31 @@ function vernissaria_generate_qr_on_status_change($new_status, $old_status, $pos
         return;
     }
     
-    // Generate the QR code using the API URL from settings
+    // Ensure we have default values set for label and campaign
+    vernissaria_set_qr_defaults($post->ID);
+    
+    // Get the custom label and campaign values
+    $qr_label = get_post_meta($post->ID, '_vernissaria_qr_label', true);
+    $qr_campaign = get_post_meta($post->ID, '_vernissaria_qr_campaign', true);
+    
+    // Get the permalink for the post
     $url = get_permalink($post->ID);
+    
+    // Generate the QR code using the API URL from settings
     $api_url = get_option('vernissaria_api_url', 'https://vernissaria.qraft.link');
     $api_endpoint = $api_url . '/qr';
     
-    // Prepare POST data
+    // Prepare POST data with label and campaign
     $post_data = array(
         'url' => $url,
-        'label' => get_the_title($post->ID),
-        'campaign' => $post->post_type
+        'label' => $qr_label,
+        'campaign' => $qr_campaign
     );
     
-    // Add a nonce parameter for added security
-    $post_data['nonce'] = wp_create_nonce('vernissaria_qr_generate');
+    // Log what we're sending to the API
+    vernissaria_log('Vernissaria: Generating QR code for post ID ' . $post->ID . ' with data: ' . wp_json_encode($post_data));
     
+    // Make API request
     $response = wp_remote_post($api_endpoint, array(
         'body' => $post_data,
         'timeout' => 15
@@ -83,7 +94,23 @@ function vernissaria_generate_qr_on_status_change($new_status, $old_status, $pos
     if (!is_wp_error($response) && wp_remote_retrieve_response_code($response) === 200) {
         $body = wp_remote_retrieve_body($response);
         
-        // Validate that the response is actually a PNG image
+        // Try to parse response as JSON first
+        $response_data = json_decode($body, true);
+        if (is_array($response_data) && isset($response_data['redirect_key']) && isset($response_data['url'])) {
+            // This is a JSON response from the API
+            $redirect_key = $response_data['redirect_key'];
+            $qr_url = $response_data['url'];
+            
+            // Store in post meta
+            update_post_meta($post->ID, '_vernissaria_qr_code', esc_url_raw($qr_url));
+            update_post_meta($post->ID, '_vernissaria_redirect_key', $redirect_key);
+            update_post_meta($post->ID, '_vernissaria_original_url', $url);
+            
+            vernissaria_log('Vernissaria: Successfully generated QR code for post ID ' . $post->ID . ' with redirect key ' . $redirect_key);
+            return;
+        }
+        
+        // Fall back to handling binary PNG response
         if (substr($body, 0, 8) === "\x89PNG\r\n\x1a\n") {
             // Determine upload directory and subfolder by domain
             $upload_dir = wp_upload_dir();
@@ -122,7 +149,7 @@ function vernissaria_generate_qr_on_status_change($new_status, $old_status, $pos
                 
                 $fileurl = $upload_dir['baseurl'] . '/qr-codes/' . $filename;
                 update_post_meta($post->ID, '_vernissaria_qr_code', esc_url_raw($fileurl));
-                update_post_meta($post->ID, '_vernissaria_original_url', get_permalink($post->ID)); // Store the original UR
+                update_post_meta($post->ID, '_vernissaria_original_url', $url);
                 
                 // Get the redirect key from the headers
                 $headers = wp_remote_retrieve_headers($response);
@@ -134,23 +161,23 @@ function vernissaria_generate_qr_on_status_change($new_status, $old_status, $pos
                     vernissaria_log('Vernissaria: Successfully generated QR code for post ID ' . $post->ID . ' with redirect key ' . $redirect_key);
                 }
             }
+        } else {
+            vernissaria_log('Vernissaria: Received non-PNG response: ' . substr($body, 0, 100), 'error');
         }
     } else {
         // Log error
         if (is_wp_error($response)) {
-            vernissaria_log('Vernissaria: Failed to generate QR code - ' . $response->get_error_message());
+            vernissaria_log('Vernissaria: Failed to generate QR code - ' . $response->get_error_message(), 'error');
         } else {
             $response_code = wp_remote_retrieve_response_code($response);
             $response_body = wp_remote_retrieve_body($response);
-            vernissaria_log('Vernissaria: Failed to generate QR code - Response code: ' . $response_code . ', Body: ' . $response_body);
+            vernissaria_log('Vernissaria: Failed to generate QR code - Response code: ' . $response_code . ', Body: ' . $response_body, 'error');
         }
     }
 }
 add_action('transition_post_status', 'vernissaria_generate_qr_on_status_change', 10, 3);
 
-/**
- * Update QR code metadata when a post with existing QR code is updated
- */
+
 /**
  * Update QR code metadata when a post with existing QR code is updated
  */
@@ -158,14 +185,27 @@ function vernissaria_update_qr_metadata($post, $redirect_key) {
     $api_url = get_option('vernissaria_api_url', 'https://vernissaria.qraft.link');
     $api_endpoint = $api_url . '/qr/' . $redirect_key;
     
+    // Get the custom label and campaign values
+    $qr_label = get_post_meta($post->ID, '_vernissaria_qr_label', true);
+    $qr_campaign = get_post_meta($post->ID, '_vernissaria_qr_campaign', true);
+    
+    // Use defaults if values are not set
+    if (empty($qr_label)) {
+        $qr_label = get_the_title($post->ID);
+    }
+    
+    if (empty($qr_campaign)) {
+        $qr_campaign = $post->post_type;
+    }
+    
     // Get the current post permalink
     $permalink = get_permalink($post->ID);
     
     // Prepare the data to update
     $data = array(
-        'label' => get_the_title($post->ID),
-        'campaign' => $post->post_type,
-        'original_url' => $permalink, // Add the permalink as original_url
+        'label' => $qr_label,
+        'campaign' => $qr_campaign,
+        'original_url' => $permalink,
         'metadata' => json_encode(array(
             'post_id' => $post->ID,
             'updated_at' => current_time('mysql')
@@ -174,6 +214,7 @@ function vernissaria_update_qr_metadata($post, $redirect_key) {
     
     // Make sure to log the data being sent for debugging
     vernissaria_log('Vernissaria: Updating metadata for redirect_key ' . $redirect_key . ' with data: ' . wp_json_encode($data));
+
     
     // WordPress doesn't natively support PATCH, so we use a custom approach
     $response = wp_remote_request($api_endpoint, array(
@@ -187,17 +228,21 @@ function vernissaria_update_qr_metadata($post, $redirect_key) {
     
     if (is_wp_error($response)) {
         vernissaria_log('Vernissaria: Failed to update QR metadata - ' . $response->get_error_message(), 'error');
+        return false;
     } else {
         $response_code = wp_remote_retrieve_response_code($response);
         $response_body = wp_remote_retrieve_body($response);
         
         if ($response_code !== 200) {
             vernissaria_log('Vernissaria: Failed to update QR metadata - Response code: ' . $response_code . ', Body: ' . $response_body, 'error');
+            return false;
         } else {
-            vernissaria_log('Vernissaria: Successfully updated QR metadata for redirect_key: ' . $redirect_key . ' with URL: ' . $permalink);
+            vernissaria_log('Vernissaria: Successfully updated QR metadata for redirect_key: ' . $redirect_key);
             
-            // Also update the URL in post meta to ensure it's current
+            // Store the current URL in post meta
             update_post_meta($post->ID, '_vernissaria_original_url', $permalink);
+            
+            return true;
         }
     }
 }
