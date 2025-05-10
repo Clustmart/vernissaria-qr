@@ -122,6 +122,7 @@ function vernissaria_generate_qr_on_status_change($new_status, $old_status, $pos
                 
                 $fileurl = $upload_dir['baseurl'] . '/qr-codes/' . $filename;
                 update_post_meta($post->ID, '_vernissaria_qr_code', esc_url_raw($fileurl));
+                update_post_meta($post->ID, '_vernissaria_original_url', get_permalink($post->ID)); // Store the original UR
                 
                 // Get the redirect key from the headers
                 $headers = wp_remote_retrieve_headers($response);
@@ -150,14 +151,21 @@ add_action('transition_post_status', 'vernissaria_generate_qr_on_status_change',
 /**
  * Update QR code metadata when a post with existing QR code is updated
  */
+/**
+ * Update QR code metadata when a post with existing QR code is updated
+ */
 function vernissaria_update_qr_metadata($post, $redirect_key) {
     $api_url = get_option('vernissaria_api_url', 'https://vernissaria.qraft.link');
     $api_endpoint = $api_url . '/qr/' . $redirect_key;
+    
+    // Get the current post permalink
+    $permalink = get_permalink($post->ID);
     
     // Prepare the data to update
     $data = array(
         'label' => get_the_title($post->ID),
         'campaign' => $post->post_type,
+        'original_url' => $permalink, // Add the permalink as original_url
         'metadata' => json_encode(array(
             'post_id' => $post->ID,
             'updated_at' => current_time('mysql')
@@ -166,7 +174,6 @@ function vernissaria_update_qr_metadata($post, $redirect_key) {
     
     // Make sure to log the data being sent for debugging
     vernissaria_log('Vernissaria: Updating metadata for redirect_key ' . $redirect_key . ' with data: ' . wp_json_encode($data));
-
     
     // WordPress doesn't natively support PATCH, so we use a custom approach
     $response = wp_remote_request($api_endpoint, array(
@@ -179,15 +186,18 @@ function vernissaria_update_qr_metadata($post, $redirect_key) {
     ));
     
     if (is_wp_error($response)) {
-        vernissaria_log('Vernissaria: Failed to update QR metadata - ' . $response->get_error_message());
+        vernissaria_log('Vernissaria: Failed to update QR metadata - ' . $response->get_error_message(), 'error');
     } else {
         $response_code = wp_remote_retrieve_response_code($response);
         $response_body = wp_remote_retrieve_body($response);
         
         if ($response_code !== 200) {
-            vernissaria_log('Vernissaria: Failed to update QR metadata - Response code: ' . $response_code . ', Body: ' . $response_body);
+            vernissaria_log('Vernissaria: Failed to update QR metadata - Response code: ' . $response_code . ', Body: ' . $response_body, 'error');
         } else {
-            vernissaria_log('Vernissaria: Successfully updated QR metadata for redirect_key: ' . $redirect_key);
+            vernissaria_log('Vernissaria: Successfully updated QR metadata for redirect_key: ' . $redirect_key . ' with URL: ' . $permalink);
+            
+            // Also update the URL in post meta to ensure it's current
+            update_post_meta($post->ID, '_vernissaria_original_url', $permalink);
         }
     }
 }
