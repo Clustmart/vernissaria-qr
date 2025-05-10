@@ -109,8 +109,8 @@ function vernissaria_qr_stats_shortcode($atts) {
     $output .= '</div>';
     
     // Last scanned info
-    if (!empty($stats['last_accessed'])) {
-        $last_scan = date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($stats['last_accessed']));
+    if (!empty($stats['updated_at'])) {
+        $last_scan = date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($stats['updated_at']));
         $output .= '<p class="last-scanned">' . esc_html__('Last scanned', 'vernissaria-qr') . ': ' . $last_scan . '</p>';
     }
     
