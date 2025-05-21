@@ -275,7 +275,7 @@ function vernissaria_custom_box_html($post) {
                 type: 'POST',
                 data: {
                     action: 'vernissaria_update_qr_ajax',
-                    nonce: '<?php echo wp_create_nonce('vernissaria_update_qr_ajax'); ?>',
+                    nonce: '<?php echo esc_js(wp_create_nonce('vernissaria_update_qr_ajax')); ?>',
                     post_id: <?php echo intval($post->ID); ?>,
                     redirect_key: redirectKey,
                     label: label,

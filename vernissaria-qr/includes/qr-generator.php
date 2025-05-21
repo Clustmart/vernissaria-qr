@@ -385,7 +385,7 @@ function vernissaria_generate_qr_code($post_id, $url, $label, $campaign) {
         $base_dir = $upload_dir['basedir'] . '/vernissaria-qr';
         
         // Create year/month structure (like WordPress core)
-        $date_dir = date('Y/m');
+        $date_dir = gmdate('Y/m');
         $target_dir = $base_dir . '/' . $date_dir;
         
         // Add domain subdirectory if available
