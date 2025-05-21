@@ -54,16 +54,16 @@ function vernissaria_get_qr_scan_count($redirect_key) {
     }
     
     // Parse response
-    $stats = json_decode(wp_remote_retrieve_body($response), true);
+    $data = json_decode(wp_remote_retrieve_body($response), true);
     
-    if (!$stats || !isset($stats['scan_count'])) {
+    if (!$data || !isset($data['access_count'])) {
         return false;
     }
     
     // Store in transient for 30 minutes
-    set_transient($transient_key, $stats['scan_count'], 30 * MINUTE_IN_SECONDS);
+    set_transient($transient_key, $data['access_count'], 30 * MINUTE_IN_SECONDS);
     
-    return $stats['scan_count'];
+    return $data['access_count'];
 }
 
 /**
@@ -74,9 +74,33 @@ function vernissaria_custom_box_html($post) {
     wp_nonce_field('vernissaria_meta_box', 'vernissaria_meta_box_nonce');
     
     $qr_code = get_post_meta($post->ID, '_vernissaria_qr_code', true);
+    $redirect_key = get_post_meta($post->ID, '_vernissaria_redirect_key', true);
     $dimensions = get_post_meta($post->ID, '_vernissaria_dimensions', true);
     $year = get_post_meta($post->ID, '_vernissaria_year', true);
-    $redirect_key = get_post_meta($post->ID, '_vernissaria_redirect_key', true);
+    
+    // Debug log the QR code URL
+    vernissaria_log('QR code URL from meta: ' . $qr_code);
+    
+    // Fix QR code URL if needed
+    if ($qr_code && !filter_var($qr_code, FILTER_VALIDATE_URL)) {
+        // If it's not a full URL, try to make it one
+        if (strpos($qr_code, '/') === 0) {
+            // It's a server path starting with /
+            $qr_code = site_url($qr_code);
+        } else {
+            // It might be a relative path
+            $upload_dir = wp_upload_dir();
+            if (strpos($qr_code, $upload_dir['basedir']) === 0) {
+                // Convert from absolute server path to URL
+                $qr_code = str_replace($upload_dir['basedir'], $upload_dir['baseurl'], $qr_code);
+            } else if (!strpos($qr_code, 'http')) {
+                // Just prepend the uploads URL
+                $qr_code = trailingslashit($upload_dir['baseurl']) . $qr_code;
+            }
+        }
+        
+        vernissaria_log('Fixed QR code URL: ' . $qr_code);
+    }
     
     // Get the QR label and campaign values (new)
     $qr_label = get_post_meta($post->ID, '_vernissaria_qr_label', true);
@@ -172,7 +196,9 @@ function vernissaria_custom_box_html($post) {
     <p>
         <label><?php echo esc_html__('QR Code', 'vernissaria-qr'); ?></label><br />
         <?php if ($qr_code) : ?>
-            <img src="<?php echo esc_url($qr_code); ?>" width="450" height="450" style="margin-bottom: 10px;" /><br />
+            <div class="qr-code-container">
+                <img src="<?php echo esc_url($qr_code); ?>" width="450" height="450" style="margin-bottom: 10px;" />
+            </div>
             
             <?php if ($scan_count !== false) : ?>
                 <div class="vernissaria-qr-scan-count" style="margin-bottom: 10px; padding: 8px; background: #f8f9fa; border-left: 4px solid #4e73df;">

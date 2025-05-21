@@ -31,8 +31,7 @@ function vernissaria_log($message, $level = 'info') {
 /**
  * Generate QR code when post status changes to published
  */
-
- function vernissaria_generate_qr_on_status_change($new_status, $old_status, $post) {
+function vernissaria_generate_qr_on_status_change($new_status, $old_status, $post) {
     // Only proceed if the post is being published (new status is 'publish')
     if ($new_status !== 'publish') {
         return;
@@ -61,118 +60,29 @@ function vernissaria_log($message, $level = 'info') {
         return;
     }
     
-    // Ensure we have default values set for label and campaign
-    vernissaria_set_qr_defaults($post->ID);
+    // Get the permalink for this post
+    $url = get_permalink($post->ID);
     
     // Get the custom label and campaign values
     $qr_label = get_post_meta($post->ID, '_vernissaria_qr_label', true);
     $qr_campaign = get_post_meta($post->ID, '_vernissaria_qr_campaign', true);
     
-    // Get the permalink for the post
-    $url = get_permalink($post->ID);
+    // Use defaults if empty
+    if (empty($qr_label)) {
+        $qr_label = get_the_title($post->ID);
+    }
     
-    // Generate the QR code using the API URL from settings
-    $api_url = get_option('vernissaria_api_url', 'https://vernissaria.qraft.link');
-    $api_endpoint = $api_url . '/qr';
+    if (empty($qr_campaign)) {
+        $qr_campaign = $post->post_type;
+    }
     
-    // Prepare POST data with label and campaign
-    $post_data = array(
-        'url' => $url,
-        'label' => $qr_label,
-        'campaign' => $qr_campaign
-    );
+    // Generate the QR code
+    $result = vernissaria_generate_qr_code($post->ID, $url, $qr_label, $qr_campaign);
     
-    // Log what we're sending to the API
-    vernissaria_log('Vernissaria: Generating QR code for post ID ' . $post->ID . ' with data: ' . wp_json_encode($post_data));
-    
-    // Make API request
-    $response = wp_remote_post($api_endpoint, array(
-        'body' => $post_data,
-        'timeout' => 15
-    ));
-
-    if (!is_wp_error($response) && wp_remote_retrieve_response_code($response) === 200) {
-        $body = wp_remote_retrieve_body($response);
-        
-        // Try to parse response as JSON first
-        $response_data = json_decode($body, true);
-        if (is_array($response_data) && isset($response_data['redirect_key']) && isset($response_data['url'])) {
-            // This is a JSON response from the API
-            $redirect_key = $response_data['redirect_key'];
-            $qr_url = $response_data['url'];
-            
-            // Store in post meta
-            update_post_meta($post->ID, '_vernissaria_qr_code', esc_url_raw($qr_url));
-            update_post_meta($post->ID, '_vernissaria_redirect_key', $redirect_key);
-            update_post_meta($post->ID, '_vernissaria_original_url', $url);
-            
-            vernissaria_log('Vernissaria: Successfully generated QR code for post ID ' . $post->ID . ' with redirect key ' . $redirect_key);
-            return;
-        }
-        
-        // Fall back to handling binary PNG response
-        if (substr($body, 0, 8) === "\x89PNG\r\n\x1a\n") {
-            // Determine upload directory and subfolder by domain
-            $upload_dir = wp_upload_dir();
-            $subdir = $upload_dir['basedir'] . '/qr-codes';
-
-            // Create directory with proper permissions
-            if (!file_exists($subdir)) {
-                wp_mkdir_p($subdir);
-                
-                // Add .htaccess file for extra security in the QR codes directory
-                $htaccess_file = $upload_dir['basedir'] . '/qr-codes/.htaccess';
-                if (!file_exists($htaccess_file)) {
-                    $htaccess_content = "# Protect image files\n";
-                    $htaccess_content .= "<Files ~ '\.png$'>\n";
-                    $htaccess_content .= "    <IfModule mod_headers.c>\n";
-                    $htaccess_content .= "        Header set Content-Disposition 'inline'\n";
-                    $htaccess_content .= "    </IfModule>\n";
-                    $htaccess_content .= "</Files>\n";
-                    
-                    @file_put_contents($htaccess_file, $htaccess_content);
-                }
-            }
-
-            $filename = "qr-{$post->ID}.png";
-            $filepath = $subdir . '/' . $filename;
-
-            // Write file with WP filesystem API
-            global $wp_filesystem;
-            if (empty($wp_filesystem)) {
-                require_once(ABSPATH . 'wp-admin/includes/file.php');
-                WP_Filesystem();
-            }
-            
-            if ($wp_filesystem) {
-                $wp_filesystem->put_contents($filepath, $body, FS_CHMOD_FILE);
-                
-                $fileurl = $upload_dir['baseurl'] . '/qr-codes/' . $filename;
-                update_post_meta($post->ID, '_vernissaria_qr_code', esc_url_raw($fileurl));
-                update_post_meta($post->ID, '_vernissaria_original_url', $url);
-                
-                // Get the redirect key from the headers
-                $headers = wp_remote_retrieve_headers($response);
-                if ($headers && isset($headers['X-Redirect-Key'])) {
-                    $redirect_key = $headers['X-Redirect-Key'];
-                    update_post_meta($post->ID, '_vernissaria_redirect_key', $redirect_key);
-                    
-                    // Log successful generation
-                    vernissaria_log('Vernissaria: Successfully generated QR code for post ID ' . $post->ID . ' with redirect key ' . $redirect_key);
-                }
-            }
-        } else {
-            vernissaria_log('Vernissaria: Received non-PNG response: ' . substr($body, 0, 100), 'error');
-        }
+    if ($result) {
+        vernissaria_log('Successfully generated QR code for post ID ' . $post->ID);
     } else {
-        // Log error
-        if (is_wp_error($response)) {
-            vernissaria_log('Vernissaria: Failed to generate QR code - ' . $response->get_error_message(), 'error');
-        } else {
-            $response_code = wp_remote_retrieve_response_code($response);
-            $response_body = wp_remote_retrieve_body($response);
-            vernissaria_log('Vernissaria: Failed to generate QR code - Response code: ' . $response_code . ', Body: ' . $response_body, 'error');
-        }
+        vernissaria_log('Failed to generate QR code for post ID ' . $post->ID, 'error');
     }
 }
 add_action('transition_post_status', 'vernissaria_generate_qr_on_status_change', 10, 3);
@@ -420,3 +330,108 @@ function vernissaria_register_sortable_columns() {
     add_action('pre_get_posts', 'vernissaria_columns_orderby');
 }
 add_action('admin_init', 'vernissaria_register_sortable_columns');
+
+/**
+ * Generate a QR code for a post using the Vernissaria API
+ */
+function vernissaria_generate_qr_code($post_id, $url, $label, $campaign) {
+    // Extract domain for organization
+    $domain = '';
+    if (preg_match('/^https?:\/\/([^\/]+)/', $url, $matches)) {
+        $domain = str_replace('.', '_', $matches[1]);
+    }
+    
+    // Generate the QR code using the API URL from settings
+    $api_url = get_option('vernissaria_api_url', 'https://vernissaria.qraft.link');
+    
+    // Ensure the API URL doesn't end with a slash
+    $api_url = rtrim($api_url, '/');
+    
+    // Build query parameters
+    $query_args = array(
+        'url' => $url,
+        'label' => $label,
+        'campaign' => $campaign,
+        'nonce' => wp_create_nonce('vernissaria_qr_generate')
+    );
+    
+    // Create the API endpoint URL with query parameters
+    $api_endpoint = add_query_arg($query_args, $api_url . '/qr');
+    
+    vernissaria_log('Vernissaria: Generating QR code for post ID ' . $post_id . ' with URL: ' . $api_endpoint);
+    
+    // Make GET request to the API
+    $response = wp_remote_get($api_endpoint, array(
+        'timeout' => 15
+    ));
+
+
+    // Process the response
+    if (!is_wp_error($response) && wp_remote_retrieve_response_code($response) === 200) {
+        // Get the body (which should be the QR code image binary data)
+        $body = wp_remote_retrieve_body($response);
+        
+        // Extract the redirect key from headers
+        $headers = wp_remote_retrieve_headers($response);
+        $redirect_key = isset($headers['X-Redirect-Key']) ? $headers['X-Redirect-Key'] : '';
+        
+        if (empty($redirect_key)) {
+            vernissaria_log('No redirect key found in headers', 'error');
+            return false;
+        }
+        
+        // Create organized directory structure
+        $upload_dir = wp_upload_dir();
+        $base_dir = $upload_dir['basedir'] . '/vernissaria-qr';
+        
+        // Create year/month structure (like WordPress core)
+        $date_dir = date('Y/m');
+        $target_dir = $base_dir . '/' . $date_dir;
+        
+        // Add domain subdirectory if available
+        if (!empty($domain)) {
+            $target_dir .= '/' . $domain;
+        }
+        
+        // Create directories recursively
+        if (!file_exists($target_dir)) {
+            wp_mkdir_p($target_dir);
+        }
+        
+        // Generate filename with post ID and timestamp
+        $filename = 'qr-' . $post_id . '-' . time() . '.png';
+        $target_file = $target_dir . '/' . $filename;
+        
+        // Save the image data to file
+        $save_result = file_put_contents($target_file, $body);
+        
+        if (!$save_result) {
+            vernissaria_log('Failed to save QR code image to file: ' . $target_file, 'error');
+            return false;
+        }
+        
+        // Create relative path for storing in database
+        $rel_path = 'vernissaria-qr/' . $date_dir . ($domain ? '/' . $domain : '') . '/' . $filename;
+        
+        // Store full URL path for immediate use
+        $local_url = $upload_dir['baseurl'] . '/' . $rel_path;
+        
+        // Store both paths and metadata in post meta
+        update_post_meta($post_id, '_vernissaria_qr_code', esc_url_raw($local_url));
+        update_post_meta($post_id, '_vernissaria_qr_rel_path', $rel_path); // Store relative path for portability
+        update_post_meta($post_id, '_vernissaria_redirect_key', $redirect_key);
+        update_post_meta($post_id, '_vernissaria_original_url', $url);
+        
+        vernissaria_log('Successfully stored QR code image at: ' . $local_url);
+        
+        return $local_url;
+    } else {
+        // Error handling
+        if (is_wp_error($response)) {
+            vernissaria_log('Failed to generate QR code: ' . $response->get_error_message(), 'error');
+        } else {
+            vernissaria_log('API error: ' . wp_remote_retrieve_response_code($response) . ' - ' . wp_remote_retrieve_body($response), 'error');
+        }
+        return false;
+    }
+}
