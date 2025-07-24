@@ -11,6 +11,32 @@ if (!defined('ABSPATH')) {
 }
 
 /**
+ * Register scripts and styles for the frontend
+ */
+function vernissaria_register_frontend_assets() {
+    // Register Chart.js script
+    wp_register_script(
+        'vernissaria-chart-js',
+        VERNISSARIA_QR_URL . 'assets/js/chart.min.js',
+        array(),
+        '3.7.1',
+        array(
+            'strategy' => 'defer',
+            'in_footer' => true
+        )
+    );
+    
+    // Register QR stats styles
+    wp_register_style(
+        'vernissaria-qr-stats',
+        VERNISSARIA_QR_URL . 'assets/css/qr-stats.css',
+        array(),
+        VERNISSARIA_QR_VERSION
+    );
+}
+add_action('wp_enqueue_scripts', 'vernissaria_register_frontend_assets');
+
+/**
  * Register shortcode for displaying QR stats
  */
 add_shortcode('vernissaria_qr_stats', 'vernissaria_qr_stats_shortcode');
@@ -39,7 +65,6 @@ function vernissaria_qr_stats_shortcode($atts) {
     // Get the site domain
     $site_domain = wp_parse_url(get_site_url(), PHP_URL_HOST);
 
-    
     // API settings
     $api_url = get_option('vernissaria_api_url', 'https://vernissaria.qraft.link');
     $endpoint = $api_url . '/qr/' . $atts['redirect_key'];
@@ -73,15 +98,11 @@ function vernissaria_qr_stats_shortcode($atts) {
         return '<p>' . esc_html__('Error: Unable to parse API response', 'vernissaria-qr') . '</p>';
     }
     
-    // Enqueue scripts for charts if needed
+    // Enqueue scripts and styles
+    wp_enqueue_style('vernissaria-qr-stats');
+    
     if ($atts['show_chart'] === 'yes') {
-        wp_enqueue_script(
-            'vernissaria-chart-js',
-            VERNISSARIA_QR_URL . 'assets/js/chart.min.js',
-            array(),
-            '3.7.1',
-            true
-        );
+        wp_enqueue_script('vernissaria-chart-js');
     }
     
     // Generate unique IDs for charts
@@ -129,21 +150,49 @@ function vernissaria_qr_stats_shortcode($atts) {
         }
         $output .= '</div>';
         
-        // Add JavaScript for charts
-        $output .= '
-        <script>
+        // Prepare chart data for inline script
+        $device_data = array(
+            'mobile' => intval($stats['devices']['mobile']),
+            'tablet' => intval($stats['devices']['tablet']),
+            'desktop' => intval($stats['devices']['desktop'])
+        );
+        
+        $browser_data = array();
+        if (!empty($stats['browsers'])) {
+            $i = 0;
+            foreach($stats['browsers'] as $browser => $count) {
+                $browser_data[$browser] = intval($count);
+                $i++;
+                if ($i >= 5) break; // Limit to top 5 browsers
+            }
+        }
+        
+        // Prepare JavaScript data
+        $chart_data = array(
+            'chartId' => $chart_id,
+            'deviceData' => $device_data,
+            'browserData' => $browser_data,
+            'labels' => array(
+                'mobile' => __('Mobile', 'vernissaria-qr'),
+                'tablet' => __('Tablet', 'vernissaria-qr'),
+                'desktop' => __('Desktop', 'vernissaria-qr'),
+                'deviceTypes' => __('Device Types', 'vernissaria-qr'),
+                'browsers' => __('Browsers', 'vernissaria-qr')
+            )
+        );
+        
+        // Add inline JavaScript for charts using wp_add_inline_script
+        $chart_js = '
         document.addEventListener("DOMContentLoaded", function() {
+            var chartData = ' . wp_json_encode($chart_data) . ';
+            
             // Device chart
-            new Chart(document.getElementById("' . esc_attr($chart_id) . '-devices"), {
+            new Chart(document.getElementById(chartData.chartId + "-devices"), {
                 type: "doughnut",
                 data: {
-                    labels: ["' . esc_js(__('Mobile', 'vernissaria-qr')) . '", "' . esc_js(__('Tablet', 'vernissaria-qr')) . '", "' . esc_js(__('Desktop', 'vernissaria-qr')) . '"],
+                    labels: [chartData.labels.mobile, chartData.labels.tablet, chartData.labels.desktop],
                     datasets: [{
-                        data: [' . 
-                            intval($stats['devices']['mobile']) . ', ' . 
-                            intval($stats['devices']['tablet']) . ', ' . 
-                            intval($stats['devices']['desktop']) . 
-                        '],
+                        data: [chartData.deviceData.mobile, chartData.deviceData.tablet, chartData.deviceData.desktop],
                         backgroundColor: ["#4e73df", "#1cc88a", "#36b9cc"]
                     }]
                 },
@@ -155,55 +204,45 @@ function vernissaria_qr_stats_shortcode($atts) {
                         },
                         title: {
                             display: true,
-                            text: "' . esc_js(__('Device Types', 'vernissaria-qr')) . '"
+                            text: chartData.labels.deviceTypes
                         }
                     }
                 }
-            });';
-        
-        // Add browser chart if we have data
-        if (!empty($stats['browsers'])) {
-            $browser_labels = [];
-            $browser_data = [];
-            $browser_colors = ["#4e73df", "#1cc88a", "#36b9cc", "#f6c23e", "#e74a3b"];
-            $i = 0;
+            });
             
-            foreach($stats['browsers'] as $browser => $count) {
-                $browser_labels[] = $browser;
-                $browser_data[] = $count;
-                $i++;
-                if ($i >= 5) break; // Limit to top 5 browsers
+            // Browser chart if we have data
+            if (Object.keys(chartData.browserData).length > 0) {
+                var browserLabels = Object.keys(chartData.browserData);
+                var browserValues = Object.values(chartData.browserData);
+                var browserColors = ["#4e73df", "#1cc88a", "#36b9cc", "#f6c23e", "#e74a3b"];
+                
+                new Chart(document.getElementById(chartData.chartId + "-browsers"), {
+                    type: "doughnut",
+                    data: {
+                        labels: browserLabels,
+                        datasets: [{
+                            data: browserValues,
+                            backgroundColor: browserColors.slice(0, browserLabels.length)
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                position: "bottom"
+                            },
+                            title: {
+                                display: true,
+                                text: chartData.labels.browsers
+                            }
+                        }
+                    }
+                });
             }
-            
-            $output .= '
-            // Browser chart
-            new Chart(document.getElementById("' . esc_attr($chart_id) . '-browsers"), {
-                type: "doughnut",
-                data: {
-                    labels: ["' . implode('", "', array_map('esc_js', $browser_labels)) . '"],
-                    datasets: [{
-                        data: [' . implode(', ', array_map('intval', $browser_data)) . '],
-                        backgroundColor: ["' . implode('", "', array_slice($browser_colors, 0, count($browser_data))) . '"]
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: {
-                            position: "bottom"
-                        },
-                        title: {
-                            display: true,
-                            text: "' . esc_js(__('Browsers', 'vernissaria-qr')) . '"
-                        }
-                    }
-                }
-            });';
-        }
+        });';
         
-        $output .= '
-        });
-        </script>';
+        // Add inline script to the enqueued Chart.js
+        wp_add_inline_script('vernissaria-chart-js', $chart_js);
     }
     
     // Add recent scans table if enabled
@@ -229,24 +268,8 @@ function vernissaria_qr_stats_shortcode($atts) {
     
     $output .= '</div>';
     
-    // Enqueue styles
-    wp_enqueue_style('vernissaria-qr-stats', VERNISSARIA_QR_URL . 'assets/css/qr-stats.css', array(), VERNISSARIA_QR_VERSION);
-    
     return $output;
 }
-
-/**
- * Register styles for the frontend
- */
-function vernissaria_register_styles() {
-    wp_register_style(
-        'vernissaria-qr-stats',
-        VERNISSARIA_QR_URL . 'assets/css/qr-stats.css',
-        array(),
-        VERNISSARIA_QR_VERSION
-    );
-}
-add_action('wp_enqueue_scripts', 'vernissaria_register_styles');
 
 /**
  * Get the plugin domain for QR code statistics
@@ -259,7 +282,6 @@ function vernissaria_get_domain() {
     // If not set, use the site domain
     if (empty($domain)) {
         $domain = wp_parse_url(get_site_url(), PHP_URL_HOST);
-
     }
     
     return $domain;

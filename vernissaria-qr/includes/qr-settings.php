@@ -36,6 +36,24 @@ function vernissaria_is_visitor_stats_widget_enabled() {
 }
 
 /**
+ * Register admin scripts and styles
+ */
+function vernissaria_register_admin_assets() {
+    // Register Chart.js for admin dashboard widgets
+    wp_register_script(
+        'vernissaria-admin-chart-js',
+        VERNISSARIA_QR_URL . 'assets/js/chart.min.js',
+        array(),
+        '3.7.1',
+        array(
+            'strategy' => 'defer',
+            'in_footer' => true
+        )
+    );
+}
+add_action('admin_enqueue_scripts', 'vernissaria_register_admin_assets');
+
+/**
  * Add settings page to admin menu
  */
 function vernissaria_add_settings_page() {
@@ -371,20 +389,13 @@ function vernissaria_dashboard_widget() {
  * Visitor stats dashboard widget for last 30 days
  */
 function vernissaria_visitor_stats_widget() {
-    // Enqueue Chart.js
-    wp_enqueue_script(
-        'vernissaria-chart-js',
-        VERNISSARIA_QR_URL . 'assets/js/chart.min.js',
-        array(),
-        '3.7.1',
-        true
-    );
+    // Enqueue Chart.js for admin
+    wp_enqueue_script('vernissaria-admin-chart-js');
 
     // Get API URL from settings
     $api_url = get_option('vernissaria_api_url', 'https://vernissaria.qraft.link');
     $domain = wp_parse_url(get_site_url(), PHP_URL_HOST);
     $endpoint = $api_url . '/stats/daily?days=30&domain='. urlencode($domain);
-    
     
     // Make API request
     $response = wp_remote_get($endpoint);
@@ -442,29 +453,42 @@ function vernissaria_visitor_stats_widget() {
     echo '<canvas id="' . esc_attr($chart_id) . '" style="width: 100%; height: 250px;"></canvas>';
     echo '</div>';
     
-    // JavaScript for chart
-    ?>
-    <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        new Chart(document.getElementById('<?php echo esc_js($chart_id); ?>'), {
-            type: 'line',
+    // Prepare chart data for inline script
+    $chart_data = array(
+        'chartId' => $chart_id,
+        'days' => $days,
+        'visitors' => $visitors,
+        'scans' => $scans,
+        'labels' => array(
+            'uniqueVisitors' => __('Unique Visitors', 'vernissaria-qr'),
+            'totalScans' => __('Total Scans', 'vernissaria-qr')
+        )
+    );
+    
+    // Add inline JavaScript using wp_add_inline_script
+    $chart_js = '
+    document.addEventListener("DOMContentLoaded", function() {
+        var chartData = ' . wp_json_encode($chart_data) . ';
+        
+        new Chart(document.getElementById(chartData.chartId), {
+            type: "line",
             data: {
-                labels: <?php echo json_encode($days); ?>,
+                labels: chartData.days,
                 datasets: [
                     {
-                        label: '<?php echo esc_js(__('Unique Visitors', 'vernissaria-qr')); ?>',
-                        data: <?php echo json_encode($visitors); ?>,
-                        borderColor: '#1e88e5',
-                        backgroundColor: 'rgba(30, 136, 229, 0.1)',
+                        label: chartData.labels.uniqueVisitors,
+                        data: chartData.visitors,
+                        borderColor: "#1e88e5",
+                        backgroundColor: "rgba(30, 136, 229, 0.1)",
                         borderWidth: 2,
                         tension: 0.3,
                         fill: true
                     },
                     {
-                        label: '<?php echo esc_js(__('Total Scans', 'vernissaria-qr')); ?>',
-                        data: <?php echo json_encode($scans); ?>,
-                        borderColor: '#43a047',
-                        backgroundColor: 'rgba(67, 160, 71, 0.1)',
+                        label: chartData.labels.totalScans,
+                        data: chartData.scans,
+                        borderColor: "#43a047",
+                        backgroundColor: "rgba(67, 160, 71, 0.1)",
                         borderWidth: 2,
                         tension: 0.3,
                         fill: true
@@ -476,10 +500,10 @@ function vernissaria_visitor_stats_widget() {
                 maintainAspectRatio: false,
                 plugins: {
                     legend: {
-                        position: 'top',
+                        position: "top",
                     },
                     tooltip: {
-                        mode: 'index',
+                        mode: "index",
                         intersect: false
                     }
                 },
@@ -498,9 +522,10 @@ function vernissaria_visitor_stats_widget() {
                 }
             }
         });
-    });
-    </script>
-    <?php
+    });';
+    
+    // Add inline script to the enqueued Chart.js
+    wp_add_inline_script('vernissaria-admin-chart-js', $chart_js);
     
     // Add link to view detailed stats
     echo '<p style="margin-top: 15px; text-align: right;">';

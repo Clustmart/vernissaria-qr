@@ -11,6 +11,57 @@ if (!defined('ABSPATH')) {
 }
 
 /**
+ * Register admin scripts for metabox
+ */
+function vernissaria_register_metabox_assets() {
+    // Register script for metabox functionality
+    wp_register_script(
+        'vernissaria-metabox-js',
+        VERNISSARIA_QR_URL . 'assets/js/metabox.js',
+        array('jquery'),
+        VERNISSARIA_QR_VERSION,
+        array(
+            'strategy' => 'defer',
+            'in_footer' => true
+        )
+    );
+}
+add_action('admin_enqueue_scripts', 'vernissaria_register_metabox_assets');
+
+/**
+ * Enqueue metabox scripts on post edit screens
+ */
+function vernissaria_enqueue_metabox_scripts($hook) {
+    // Only load on post edit screens
+    if (!in_array($hook, array('post.php', 'post-new.php'))) {
+        return;
+    }
+    
+    // Check if current post type is enabled
+    $screen = get_current_screen();
+    if (!$screen || !in_array($screen->post_type, vernissaria_get_enabled_post_types())) {
+        return;
+    }
+    
+    // Enqueue the metabox script
+    wp_enqueue_script('vernissaria-metabox-js');
+    
+    // Add localized script data
+    wp_localize_script('vernissaria-metabox-js', 'vernissariaMetabox', array(
+        'ajaxUrl' => admin_url('admin-ajax.php'),
+        'nonce' => wp_create_nonce('vernissaria_update_qr_ajax'),
+        'strings' => array(
+            'updating' => __('Updating...', 'vernissaria-qr'),
+            'updated' => __('Successfully updated!', 'vernissaria-qr'),
+            'error' => __('Error updating QR info', 'vernissaria-qr'),
+            'refresh' => __('Refresh', 'vernissaria-qr'),
+            'refreshed' => __('Refreshed every 30 minutes', 'vernissaria-qr')
+        )
+    ));
+}
+add_action('admin_enqueue_scripts', 'vernissaria_enqueue_metabox_scripts');
+
+/**
  * Add custom meta box
  */
 function vernissaria_add_custom_box() {
@@ -121,48 +172,6 @@ function vernissaria_custom_box_html($post) {
     if ($redirect_key) {
         $scan_count = vernissaria_get_qr_scan_count($redirect_key);
     }
-    
-    // Define allowed HTML for form elements
-    $allowed_html = array(
-        'p' => array(),
-        'label' => array(
-            'for' => array(),
-            'class' => array(),
-            'style' => array(),
-        ),
-        'input' => array(
-            'type' => array(),
-            'id' => array(),
-            'name' => array(),
-            'value' => array(),
-            'checked' => array(),
-            'class' => array(),
-            'style' => array(),
-        ),
-        'br' => array(),
-        'div' => array(
-            'class' => array(),
-            'style' => array(),
-        ),
-        'span' => array(
-            'class' => array(),
-            'style' => array(),
-        ),
-        'strong' => array(),
-        'a' => array(
-            'href' => array(),
-            'onclick' => array(),
-            'style' => array(),
-            'class' => array(),
-        ),
-        'img' => array(
-            'src' => array(),
-            'width' => array(),
-            'height' => array(),
-            'style' => array(),
-        ),
-        'code' => array(),
-    );
     ?>
     <!-- Add new QR metadata fields at the top -->
     <p>
@@ -204,7 +213,7 @@ function vernissaria_custom_box_html($post) {
                 <div class="vernissaria-qr-scan-count" style="margin-bottom: 10px; padding: 8px; background: #f8f9fa; border-left: 4px solid #4e73df;">
                     <strong><?php echo esc_html__('Total Scans', 'vernissaria-qr'); ?>:</strong> 
                     <span style="font-size: 16px; font-weight: bold;"><?php echo intval($scan_count); ?></span>
-                    <a href="#" onclick="jQuery(this).next('.vernissaria-qr-refresh-count').show(); return false;" style="margin-left: 8px; font-size: 12px; text-decoration: none;">
+                    <a href="#" class="vernissaria-refresh-count" style="margin-left: 8px; font-size: 12px; text-decoration: none;">
                         <span class="dashicons dashicons-update" style="font-size: 14px; width: 14px; height: 14px;"></span>
                         <?php echo esc_html__('Refresh', 'vernissaria-qr'); ?>
                     </a>
@@ -231,7 +240,9 @@ function vernissaria_custom_box_html($post) {
             </label>
             
             <div style="margin-top: 10px;">
-                <button type="button" class="button button-secondary" id="vernissaria_update_qr_now">
+                <button type="button" class="button button-secondary" id="vernissaria_update_qr_now" 
+                        data-post-id="<?php echo esc_attr($post->ID); ?>" 
+                        data-redirect-key="<?php echo esc_attr($redirect_key); ?>">
                     <?php echo esc_html__('Update QR Info Now', 'vernissaria-qr'); ?>
                 </button>
                 <span id="vernissaria_update_qr_status" style="display:none; margin-left: 5px; font-style: italic;"></span>
@@ -253,54 +264,6 @@ function vernissaria_custom_box_html($post) {
             </div>
         <?php endif; ?>
     </p>
-    
-    <!-- Add JavaScript for the update button -->
-    <script type="text/javascript">
-    jQuery(document).ready(function($) {
-        $('#vernissaria_update_qr_now').on('click', function() {
-            const button = $(this);
-            const status = $('#vernissaria_update_qr_status');
-            
-            // Get values from form
-            const label = $('#vernissaria_qr_label').val();
-            const campaign = $('#vernissaria_qr_campaign').val();
-            const redirectKey = '<?php echo esc_js($redirect_key); ?>';
-            
-            button.prop('disabled', true);
-            status.text('<?php echo esc_js(__('Updating...', 'vernissaria-qr')); ?>').show();
-            
-            // Make AJAX request to update QR info
-            $.ajax({
-                url: ajaxurl,
-                type: 'POST',
-                data: {
-                    action: 'vernissaria_update_qr_ajax',
-                    nonce: '<?php echo esc_js(wp_create_nonce('vernissaria_update_qr_ajax')); ?>',
-                    post_id: <?php echo intval($post->ID); ?>,
-                    redirect_key: redirectKey,
-                    label: label,
-                    campaign: campaign
-                },
-                success: function(response) {
-                    if (response.success) {
-                        status.text('<?php echo esc_js(__('Successfully updated!', 'vernissaria-qr')); ?>');
-                        // Set a timeout to hide the status message
-                        setTimeout(function() {
-                            status.fadeOut();
-                        }, 3000);
-                    } else {
-                        status.text('<?php echo esc_js(__('Error updating QR info', 'vernissaria-qr')); ?>');
-                    }
-                    button.prop('disabled', false);
-                },
-                error: function() {
-                    status.text('<?php echo esc_js(__('Error updating QR info', 'vernissaria-qr')); ?>');
-                    button.prop('disabled', false);
-                }
-            });
-        });
-    });
-    </script>
     <?php
 }
 
