@@ -88,6 +88,7 @@ function vernissaria_register_settings() {
         'vernissaria_show_dashboard_widget',
         [
             'type' => 'boolean',
+            'sanitize_callback' => 'rest_sanitize_boolean',
             'default' => true,
         ]
     );
@@ -98,6 +99,7 @@ function vernissaria_register_settings() {
         'vernissaria_show_visitor_stats_widget',
         [
             'type' => 'boolean',
+            'sanitize_callback' => 'rest_sanitize_boolean',
             'default' => true,
         ]
     );

@@ -28,6 +28,10 @@ All endpoints now follow RESTful conventions
 Consistent URL structure with proper resource grouping (/qr/* for QR operations, /stats/* for statistics)
 Proper HTTP methods (POST for creation, PATCH for updates, GET for retrieval)
 
+[1.3.4] - 25-07-2025
+### Changed
+- Fixed code according WordPress best practices
+
 [1.3.0] - 21-04-2025
 
 ##Added

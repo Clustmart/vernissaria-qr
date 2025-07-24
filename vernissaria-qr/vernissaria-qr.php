@@ -3,13 +3,12 @@
  * Plugin Name: Vernissaria QR
  * Plugin URI: https://github.com/Clustmart/vernissaria-qr
  * Description: Generate QR codes for artworks and display statistics for visitor engagement.
- * Version: 1.3.3
+ * Version: 1.3.4
  * Author: Vernissaria
  * Author URI: https://vernissaria.de
  * License: GPLv2
  * License URI: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
  * Text Domain: vernissaria-qr
- * Domain Path: /languages
  */
 
 // Exit if accessed directly
@@ -18,7 +17,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('VERNISSARIA_QR_VERSION', '1.3.3');
+define('VERNISSARIA_QR_VERSION', '1.3.4');
 define('VERNISSARIA_QR_PATH', plugin_dir_path(__FILE__));
 define('VERNISSARIA_QR_URL', plugin_dir_url(__FILE__));
 
@@ -32,10 +31,12 @@ require_once VERNISSARIA_QR_PATH . 'includes/qr-stats.php';
  * Initialize the plugin
  */
 function vernissaria_qr_init() {
-    // Load text domain for translations
-    load_plugin_textdomain('vernissaria-qr', false, dirname(plugin_basename(__FILE__)) . '/languages');
+    // WordPress automatically loads translations for plugins hosted on WordPress.org since 4.6
+    // Text domain and domain path are defined in the plugin header
+    // No manual loading required
 }
-add_action('plugins_loaded', 'vernissaria_qr_init');
+add_action('init', 'vernissaria_qr_init');
+
 
 /**
  * Register activation hook
