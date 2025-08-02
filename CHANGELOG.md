@@ -28,6 +28,17 @@ All endpoints now follow RESTful conventions
 Consistent URL structure with proper resource grouping (/qr/* for QR operations, /stats/* for statistics)
 Proper HTTP methods (POST for creation, PATCH for updates, GET for retrieval)
 
+[1.3.5] - 02-08-2025
+### Added
+- QR Code Printing Feature: New "Print QR Codes" tab in settings page
+    - Generate printable PDF containing all QR codes for your domain
+    - Configurable QR size options (Small, Medium, Large)
+    - Configurable paper size options (A4, Letter)
+    - Automatic PDF download and WordPress media library integration
+
+### Changed
+- Settings page UI improved with tabbed interface
+
 [1.3.4] - 25-07-2025
 ### Changed
 - Fixed code according WordPress best practices

@@ -1,0 +1,201 @@
+/**
+ * Vernissaria QR Print Styles
+ * Styles for the QR code printing interface
+ */
+
+.vernissaria-print-section {
+    max-width: 800px;
+    margin: 20px 0;
+}
+
+.vernissaria-print-section h3 {
+    margin-bottom: 10px;
+    color: #23282d;
+}
+
+.vernissaria-print-section > p {
+    margin-bottom: 20px;
+    color: #666;
+    font-size: 14px;
+}
+
+/* Messages */
+#vernissaria-print-messages {
+    margin: 15px 0;
+    padding: 12px;
+    border-left: 4px solid;
+}
+
+#vernissaria-print-messages.notice-error {
+    border-left-color: #dc3232;
+    background-color: #fef7f7;
+}
+
+#vernissaria-print-messages.notice-success {
+    border-left-color: #46b450;
+    background-color: #f7fff7;
+}
+
+#vernissaria-print-message-text {
+    margin: 0;
+    font-weight: 500;
+}
+
+/* Print Actions */
+.vernissaria-print-actions {
+    margin-top: 20px;
+    padding: 20px 0;
+    border-top: 1px solid #ddd;
+}
+
+#vernissaria-generate-pdf {
+    position: relative;
+    padding: 8px 16px;
+    font-size: 14px;
+    min-width: 120px;
+}
+
+#vernissaria-generate-pdf:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+#vernissaria-generate-pdf .spinner {
+    float: none;
+    margin: 0 5px 0 0;
+    visibility: visible;
+    background-image: url('data:image/svg+xml;charset=utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path fill="%23ffffff" d="M10 3a7 7 0 1 0 7 7h-2a5 5 0 1 1-5-5z"/></svg>');
+    background-size: 16px 16px;
+    width: 16px;
+    height: 16px;
+}
+
+/* PDF Result */
+.vernissaria-pdf-result {
+    margin-top: 25px;
+    padding: 20px;
+    background: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.pdf-info h4 {
+    margin: 0 0 15px 0;
+    color: #46b450;
+    font-size: 16px;
+}
+
+.pdf-info > p {
+    margin: 0 0 15px 0;
+    color: #666;
+}
+
+.pdf-details {
+    margin: 15px 0;
+    padding: 15px;
+    background: #fff;
+    border: 1px solid #e5e5e5;
+    border-radius: 3px;
+}
+
+.pdf-details p {
+    margin: 5px 0;
+    font-size: 14px;
+}
+
+.pdf-details strong {
+    color: #23282d;
+    font-weight: 600;
+    min-width: 80px;
+    display: inline-block;
+}
+
+.pdf-actions {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #e5e5e5;
+}
+
+.pdf-actions .button {
+    margin-right: 10px;
+    text-decoration: none;
+}
+
+.pdf-actions .button-secondary {
+    background: #0073aa;
+    border-color: #0073aa;
+    color: #fff;
+}
+
+.pdf-actions .button-secondary:hover {
+    background: #005a87;
+    border-color: #005a87;
+}
+
+/* Form Table Enhancements */
+.vernissaria-print-section .form-table th {
+    width: 150px;
+    padding: 15px 10px 15px 0;
+}
+
+.vernissaria-print-section .form-table td {
+    padding: 15px 10px;
+}
+
+.vernissaria-print-section select {
+    min-width: 150px;
+    padding: 5px 8px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .vernissaria-print-section {
+        margin: 10px 0;
+    }
+    
+    .pdf-actions .button {
+        display: block;
+        margin: 5px 0;
+        text-align: center;
+    }
+    
+    .pdf-details strong {
+        display: block;
+        margin-bottom: 3px;
+    }
+}
+
+/* Loading Animation */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+#vernissaria-generate-pdf .spinner {
+    animation: spin 1s linear infinite;
+}
+
+/* Success Animation */
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.vernissaria-pdf-result {
+    animation: slideDown 0.3s ease-out;
+}
+
+/* Notice Animation */
+#vernissaria-print-messages {
+    transition: all 0.3s ease-in-out;
+}
+
+#vernissaria-print-messages.notice-success {
+    animation: slideDown 0.3s ease-out;
+}

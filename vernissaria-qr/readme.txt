@@ -3,7 +3,7 @@ Contributors: vernissaria
 Tags: qr-code, analytics, art, gallery, exhibition
 Requires at least: 5.0
 Tested up to: 6.8
-Stable tag: 1.3.4
+Stable tag: 1.3.5
 Requires PHP: 7.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -17,7 +17,8 @@ Vernissaria QR is a powerful WordPress plugin designed for artisans, art galleri
 = Key Features =
 
 * **Automatic QR Code Generation**: Automatically creates QR codes when posts/pages are published
-* ** Record Artwork Details**: Document Dimensions and Year
+* **QR Code Printing**: Generate printable PDFs containing all QR codes for your domain
+* **Record Artwork Details**: Document Dimensions and Year
 * **Visitor Analytics**: Track scans, unique visitors, devices and browsers
 * **Custom Post Type Support**: Enable QR codes for any post type
 * **Dashboard Widgets**: View QR code statistics directly in your WordPress dashboard
@@ -33,6 +34,7 @@ Vernissaria QR is a powerful WordPress plugin designed for artisans, art galleri
 * Museums providing additional information via QR codes
 * Exhibitions analyzing visitor patterns
 * Digital catalogs with scan analytics
+* Printing QR codes for physical artwork labels
 
 = Shortcode Usage =
 
@@ -60,6 +62,10 @@ Display QR code statistics on any page:
 
 QR codes are automatically generated when you publish or update posts. You can find the QR code in the "Artwork Details" meta box on the post edit screen.
 
+= How do I print QR codes? =
+
+Go to Settings → Vernissaria QR → Print QR Codes tab. Select your preferred QR size and paper format, then click "Generate PDF" to create a printable document with all your QR codes.
+
 = Can I use this plugin for non-art content? =
 
 Yes! While designed for art galleries, this plugin works with any WordPress content type including posts, pages, and custom post types.
@@ -85,10 +91,19 @@ Use the style parameter in the shortcode: style="default" or style="dark"
 1. Dashboard widgets showing visitor statistics
 2. QR code meta box on post edit screen 
 3. QR code statistics displayed using shortcode
-4. Settings page
-5. Article list view with scan counts
+4. Settings page - General Settings tab
+5. Settings page with new Print QR Codes tab
+6. Article list view with scan counts
 
 == Changelog ==
+
+= 1.3.5 =
+* Added QR Code Printing Feature: New "Print QR Codes" tab in settings page
+* Generate printable PDF containing all QR codes for your domain
+* Configurable QR size options (Small, Medium, Large)
+* Configurable paper size options (A4, Letter)
+* Automatic PDF download and WordPress media library integration
+* Settings page UI improved with tabbed interface
 
 = 1.3.4 =
 * Fixed code according to WordPress best practices
@@ -116,6 +131,9 @@ Use the style parameter in the shortcode: style="default" or style="dark"
 * Initial release
 
 == Upgrade Notice ==
+
+= 1.3.5 =
+New QR code printing feature allows you to generate professional PDFs with all your QR codes for printing and physical display. Update recommended for all users.
 
 = 1.3.0 =
 This version adds significant improvements to analytics and visualization. Update recommended for all users.

@@ -54,6 +54,207 @@ function vernissaria_register_admin_assets() {
 add_action('admin_enqueue_scripts', 'vernissaria_register_admin_assets');
 
 /**
+ * Enqueue print functionality scripts and styles
+ */
+function vernissaria_enqueue_print_assets($hook) {
+    if ($hook !== 'settings_page_vernissaria-qr') {
+        return;
+    }
+    
+    wp_enqueue_script(
+        'vernissaria-qr-print',
+        VERNISSARIA_QR_URL . 'assets/js/qr-print.js',
+        array('jquery'),
+        '1.0.0',
+        true
+    );
+    
+    wp_localize_script('vernissaria-qr-print', 'vernissaria_ajax', array(
+        'ajax_url' => admin_url('admin-ajax.php'),
+        'nonce' => wp_create_nonce('vernissaria_qr_print_nonce'),
+    ));
+    
+    wp_enqueue_style(
+        'vernissaria-qr-print',
+        VERNISSARIA_QR_URL . 'assets/css/qr-print.css',
+        array(),
+        '1.0.0'
+    );
+}
+add_action('admin_enqueue_scripts', 'vernissaria_enqueue_print_assets');
+
+/**
+ * Handle AJAX PDF generation
+ */
+function vernissaria_handle_pdf_generation() {
+    // Verify nonce
+    if (!wp_verify_nonce($_POST['nonce'], 'vernissaria_qr_print_nonce')) {
+        wp_die('Security check failed');
+    }
+    
+    // Check permissions
+    if (!current_user_can('manage_options')) {
+        wp_die('Insufficient permissions');
+    }
+    
+    $qr_size = sanitize_text_field($_POST['qr_size']);
+    $paper_size = sanitize_text_field($_POST['paper_size']);
+    $domain = vernissaria_get_current_domain();
+    
+    // Validate inputs
+    if (!in_array($qr_size, ['small', 'medium', 'large'])) {
+        wp_send_json_error('Invalid QR size selected');
+    }
+    
+    if (!in_array($paper_size, ['A4', 'Letter'])) {
+        wp_send_json_error('Invalid paper size selected');
+    }
+    
+    try {
+        // Call the API
+        $api_url = get_option('vernissaria_api_url', 'https://vernissaria.qraft.link');
+        $response = vernissaria_call_pdf_api($api_url, $domain, $qr_size, $paper_size);
+        
+        if (!$response['success']) {
+            wp_send_json_error($response['message']);
+        }
+        
+        // Download and save PDF
+        $pdf_data = vernissaria_download_and_save_pdf($response['data']);
+        
+        if (!$pdf_data) {
+            wp_send_json_error('Failed to download and save PDF file');
+        }
+        
+        wp_send_json_success(array_merge($response['data'], $pdf_data));
+        
+    } catch (Exception $e) {
+        wp_send_json_error('Error generating PDF: ' . $e->getMessage());
+    }
+}
+add_action('wp_ajax_generate_qr_pdf', 'vernissaria_handle_pdf_generation');
+
+/**
+ * Call PDF generation API
+ */
+function vernissaria_call_pdf_api($api_url, $domain, $qr_size, $paper_size) {
+    $endpoint = rtrim($api_url, '/') . '/pdf/generate';
+    
+    $body = json_encode(array(
+        'domain' => $domain,
+        'qr_size' => $qr_size,
+        'paper_size' => $paper_size
+    ));
+    
+    $args = array(
+        'method' => 'POST',
+        'body' => $body,
+        'headers' => array(
+            'Content-Type' => 'application/json',
+            'Accept' => 'application/json'
+        ),
+        'timeout' => 30
+    );
+    
+    $response = wp_remote_request($endpoint, $args);
+    
+    if (is_wp_error($response)) {
+        throw new Exception('API connection failed: ' . $response->get_error_message());
+    }
+    
+    $response_code = wp_remote_retrieve_response_code($response);
+    $response_body = wp_remote_retrieve_body($response);
+    
+    if ($response_code !== 200) {
+        throw new Exception('API returned error code: ' . $response_code);
+    }
+    
+    $data = json_decode($response_body, true);
+    
+    if (!$data) {
+        throw new Exception('Invalid API response format');
+    }
+    
+    if (!$data['success']) {
+        return array(
+            'success' => false,
+            'message' => isset($data['message']) ? $data['message'] : 'Unknown API error'
+        );
+    }
+    
+    return $data;
+}
+
+/**
+ * Download and save PDF to media library
+ */
+function vernissaria_download_and_save_pdf($pdf_info) {
+    $pdf_url = $pdf_info['pdf_url'];
+    $filename = basename(parse_url($pdf_url, PHP_URL_PATH));
+    
+    // Download the PDF
+    $response = wp_remote_get($pdf_url, array(
+        'timeout' => 60
+    ));
+    
+    if (is_wp_error($response)) {
+        return false;
+    }
+    
+    $pdf_content = wp_remote_retrieve_body($response);
+    
+    if (empty($pdf_content)) {
+        return false;
+    }
+    
+    // Save to media library
+    $upload_dir = wp_upload_dir();
+    $file_path = $upload_dir['path'] . '/' . $filename;
+    $file_url = $upload_dir['url'] . '/' . $filename;
+    
+    if (!file_put_contents($file_path, $pdf_content)) {
+        return false;
+    }
+    
+    // Create attachment
+    $attachment = array(
+        'guid' => $file_url,
+        'post_mime_type' => 'application/pdf',
+        'post_title' => 'Vernissaria QR Codes PDF - ' . date('Y-m-d H:i:s'),
+        'post_content' => '',
+        'post_status' => 'inherit'
+    );
+    
+    $attachment_id = wp_insert_attachment($attachment, $file_path);
+    
+    if (!$attachment_id) {
+        return false;
+    }
+    
+    // Generate attachment metadata
+    require_once(ABSPATH . 'wp-admin/includes/image.php');
+    $attachment_data = wp_generate_attachment_metadata($attachment_id, $file_path);
+    wp_update_attachment_metadata($attachment_id, $attachment_data);
+    
+    return array(
+        'local_file_path' => $file_path,
+        'local_file_url' => $file_url,
+        'attachment_id' => $attachment_id,
+        'media_library_url' => admin_url('post.php?post=' . $attachment_id . '&action=edit'),
+        'filename' => $filename
+    );
+}
+
+/**
+ * Get current domain
+ */
+function vernissaria_get_current_domain() {
+    $site_url = get_site_url();
+    $parsed_url = parse_url($site_url);
+    return $parsed_url['host'];
+}
+
+/**
  * Add settings page to admin menu
  */
 function vernissaria_add_settings_page() {
@@ -283,12 +484,83 @@ function vernissaria_shortcode_help_callback() {
 }
 
 /**
- * Render settings page
+ * Render print settings tab content
+ */
+function vernissaria_render_print_tab() {
+    $domain = vernissaria_get_current_domain();
+    ?>
+    <div class="vernissaria-print-section">
+        <h3><?php echo esc_html__('Generate Printable QR Codes PDF', 'vernissaria-qr'); ?></h3>
+        <p><?php echo sprintf(esc_html__('Generate a PDF containing all QR codes for your domain: %s', 'vernissaria-qr'), '<strong>' . esc_html($domain) . '</strong>'); ?></p>
+        
+        <div id="vernissaria-print-messages" class="notice" style="display:none;">
+            <p id="vernissaria-print-message-text"></p>
+        </div>
+        
+        <table class="form-table">
+            <tr>
+                <th scope="row"><?php echo esc_html__('QR Code Size', 'vernissaria-qr'); ?></th>
+                <td>
+                    <select id="vernissaria-qr-size" name="qr_size">
+                        <option value="small"><?php echo esc_html__('Small', 'vernissaria-qr'); ?></option>
+                        <option value="medium" selected><?php echo esc_html__('Medium', 'vernissaria-qr'); ?></option>
+                        <option value="large"><?php echo esc_html__('Large', 'vernissaria-qr'); ?></option>
+                    </select>
+                    <p class="description"><?php echo esc_html__('Select the size of QR codes in the PDF', 'vernissaria-qr'); ?></p>
+                </td>
+            </tr>
+            <tr>
+                <th scope="row"><?php echo esc_html__('Paper Size', 'vernissaria-qr'); ?></th>
+                <td>
+                    <select id="vernissaria-paper-size" name="paper_size">
+                        <option value="A4" selected><?php echo esc_html__('A4', 'vernissaria-qr'); ?></option>
+                        <option value="Letter"><?php echo esc_html__('Letter', 'vernissaria-qr'); ?></option>
+                    </select>
+                    <p class="description"><?php echo esc_html__('Select the paper size for printing', 'vernissaria-qr'); ?></p>
+                </td>
+            </tr>
+        </table>
+        
+        <div class="vernissaria-print-actions">
+            <button type="button" id="vernissaria-generate-pdf" class="button button-primary">
+                <span class="button-text"><?php echo esc_html__('Generate PDF', 'vernissaria-qr'); ?></span>
+                <span class="spinner" style="display:none;"></span>
+            </button>
+        </div>
+        
+        <div id="vernissaria-pdf-result" class="vernissaria-pdf-result" style="display:none;">
+            <div class="pdf-info">
+                <h4><?php echo esc_html__('PDF Generated Successfully!', 'vernissaria-qr'); ?></h4>
+                <p><?php echo esc_html__('Your printable QR codes PDF has been generated and saved to your media library.', 'vernissaria-qr'); ?></p>
+                <div class="pdf-details">
+                    <p><strong><?php echo esc_html__('File:', 'vernissaria-qr'); ?></strong> <span id="pdf-filename"></span></p>
+                    <p><strong><?php echo esc_html__('QR Codes:', 'vernissaria-qr'); ?></strong> <span id="pdf-qr-count"></span></p>
+                    <p><strong><?php echo esc_html__('Expires:', 'vernissaria-qr'); ?></strong> <span id="pdf-expires"></span></p>
+                </div>
+                <div class="pdf-actions">
+                    <a href="#" id="pdf-download-link" class="button button-secondary" target="_blank">
+                        <?php echo esc_html__('Download PDF', 'vernissaria-qr'); ?>
+                    </a>
+                    <a href="#" id="pdf-media-link" class="button" target="_blank">
+                        <?php echo esc_html__('View in Media Library', 'vernissaria-qr'); ?>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <?php
+}
+
+/**
+ * Render settings page with tabs
  */
 function vernissaria_render_settings_page() {
     if (!current_user_can('manage_options')) {
         return;
     }
+    
+    // Get active tab
+    $active_tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'general';
     
     // Verify nonce for settings-updated parameter
     $settings_updated = false;
@@ -298,8 +570,8 @@ function vernissaria_render_settings_page() {
         $settings_updated = true;
     }
     
-    // Show settings saved message
-    if ($settings_updated) {
+    // Show settings saved message only on general tab
+    if ($settings_updated && $active_tab === 'general') {
         add_settings_error(
             'vernissaria_messages',
             'vernissaria_message',
@@ -313,13 +585,29 @@ function vernissaria_render_settings_page() {
     ?>
     <div class="wrap">
         <h1><?php echo esc_html(get_admin_page_title()); ?></h1>
-        <form action="options.php" method="post">
-            <?php
-            settings_fields('vernissaria_settings');
-            do_settings_sections('vernissaria_settings');
-            submit_button(__('Save Settings', 'vernissaria-qr'));
-            ?>
-        </form>
+        
+        <h2 class="nav-tab-wrapper">
+            <a href="?page=vernissaria-qr&tab=general" 
+               class="nav-tab <?php echo $active_tab == 'general' ? 'nav-tab-active' : ''; ?>">
+                <?php echo esc_html__('General Settings', 'vernissaria-qr'); ?>
+            </a>
+            <a href="?page=vernissaria-qr&tab=print" 
+               class="nav-tab <?php echo $active_tab == 'print' ? 'nav-tab-active' : ''; ?>">
+                <?php echo esc_html__('Print QR Codes', 'vernissaria-qr'); ?>
+            </a>
+        </h2>
+        
+        <?php if ($active_tab == 'general'): ?>
+            <form action="options.php" method="post">
+                <?php
+                settings_fields('vernissaria_settings');
+                do_settings_sections('vernissaria_settings');
+                submit_button(__('Save Settings', 'vernissaria-qr'));
+                ?>
+            </form>
+        <?php elseif ($active_tab == 'print'): ?>
+            <?php vernissaria_render_print_tab(); ?>
+        <?php endif; ?>
     </div>
     <?php
 }
