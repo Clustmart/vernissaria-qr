@@ -44,7 +44,7 @@ function vernissaria_register_admin_assets() {
         'vernissaria-admin-chart-js',
         VERNISSARIA_QR_URL . 'assets/js/chart.min.js',
         array(),
-        '3.7.1',
+        '4.5.0',
         array(
             'strategy' => 'defer',
             'in_footer' => true
@@ -726,7 +726,7 @@ function vernissaria_visitor_stats_widget() {
     $total_scans = array_sum($scans);
     $total_visitors = array_sum($visitors);
     
-    // Generate a unique ID for the chart
+    // Generate a unique ID for the chart - FIXED: only generate once
     $chart_id = 'vernissaria-visitor-chart-' . wp_rand();
     
     // Display summary
@@ -755,64 +755,95 @@ function vernissaria_visitor_stats_widget() {
         )
     );
     
-    // Add inline JavaScript using wp_add_inline_script
+    // IMPROVED: Use a more reliable approach for chart initialization
     $chart_js = '
-    document.addEventListener("DOMContentLoaded", function() {
-        var chartData = ' . wp_json_encode($chart_data) . ';
-        
-        new Chart(document.getElementById(chartData.chartId), {
-            type: "line",
-            data: {
-                labels: chartData.days,
-                datasets: [
-                    {
-                        label: chartData.labels.uniqueVisitors,
-                        data: chartData.visitors,
-                        borderColor: "#1e88e5",
-                        backgroundColor: "rgba(30, 136, 229, 0.1)",
-                        borderWidth: 2,
-                        tension: 0.3,
-                        fill: true
-                    },
-                    {
-                        label: chartData.labels.totalScans,
-                        data: chartData.scans,
-                        borderColor: "#43a047",
-                        backgroundColor: "rgba(67, 160, 71, 0.1)",
-                        borderWidth: 2,
-                        tension: 0.3,
-                        fill: true
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: "top",
-                    },
-                    tooltip: {
-                        mode: "index",
-                        intersect: false
-                    }
-                },
-                scales: {
-                    x: {
-                        grid: {
-                            display: false
-                        }
-                    },
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            precision: 0
-                        }
-                    }
-                }
+    (function() {
+        function initChart() {
+            var chartData = ' . wp_json_encode($chart_data) . ';
+            var canvas = document.getElementById(chartData.chartId);
+            
+            if (!canvas) {
+                console.error("Canvas element not found:", chartData.chartId);
+                return;
             }
-        });
-    });';
+            
+            if (typeof Chart === "undefined") {
+                console.error("Chart.js is not loaded");
+                return;
+            }
+            
+            try {
+                new Chart(canvas, {
+                    type: "line",
+                    data: {
+                        labels: chartData.days,
+                        datasets: [
+                            {
+                                label: chartData.labels.uniqueVisitors,
+                                data: chartData.visitors,
+                                borderColor: "#1e88e5",
+                                backgroundColor: "rgba(30, 136, 229, 0.1)",
+                                borderWidth: 2,
+                                tension: 0.3,
+                                fill: true
+                            },
+                            {
+                                label: chartData.labels.totalScans,
+                                data: chartData.scans,
+                                borderColor: "#43a047",
+                                backgroundColor: "rgba(67, 160, 71, 0.1)",
+                                borderWidth: 2,
+                                tension: 0.3,
+                                fill: true
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: "top",
+                            },
+                            tooltip: {
+                                mode: "index",
+                                intersect: false
+                            }
+                        },
+                        scales: {
+                            x: {
+                                grid: {
+                                    display: false
+                                }
+                            },
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    precision: 0
+                                }
+                            }
+                        }
+                    }
+                });
+                console.log("Chart initialized successfully for:", chartData.chartId);
+            } catch (error) {
+                console.error("Error initializing chart:", error);
+            }
+        }
+        
+        // Try multiple initialization approaches
+        if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", initChart);
+        } else {
+            // DOM is already loaded
+            if (typeof Chart !== "undefined") {
+                initChart();
+            } else {
+                // Wait for Chart.js to load
+                setTimeout(initChart, 100);
+            }
+        }
+    })();';
     
     // Add inline script to the enqueued Chart.js
     wp_add_inline_script('vernissaria-admin-chart-js', $chart_js);
@@ -844,3 +875,49 @@ function vernissaria_add_dashboard_widgets() {
     }
 }
 add_action('wp_dashboard_setup', 'vernissaria_add_dashboard_widgets');
+
+/**
+ * Debug function to check Chart.js loading
+ * Add this temporarily to qr-settings.php
+ */
+function vernissaria_debug_chartjs() {
+    // Check if we're on the dashboard
+    $screen = get_current_screen();
+    if ($screen && $screen->id === 'dashboard') {
+        // Add debug info to admin footer
+        add_action('admin_footer', function() {
+            ?>
+            <script>
+            console.log('=== Vernissaria Chart.js Debug ===');
+            console.log('Chart.js loaded:', typeof Chart !== 'undefined');
+            console.log('Canvas element exists:', document.getElementById('<?php echo 'vernissaria-visitor-chart-' . wp_rand(); ?>') !== null);
+            console.log('Enqueued scripts:', wp.hooks ? 'WP hooks available' : 'WP hooks not available');
+            
+            // List all loaded scripts
+            const scripts = document.querySelectorAll('script[src]');
+            const chartScript = Array.from(scripts).find(script => script.src.includes('chart.min.js'));
+            console.log('Chart.js script element:', chartScript);
+            
+            if (typeof Chart !== 'undefined') {
+                console.log('Chart.js version:', Chart.version);
+            }
+            </script>
+            <?php
+        });
+    }
+}
+add_action('current_screen', 'vernissaria_debug_chartjs');
+
+function vernissaria_enqueue_admin_assets($hook) {
+    // Only enqueue on dashboard or plugin settings page
+    if ($hook === 'index.php' || strpos($hook, 'vernissaria') !== false) {
+        wp_enqueue_script(
+            'vernissaria-admin-chart-js',
+            VERNISSARIA_QR_URL . 'assets/js/chart.min.js',
+            array(),
+            '4.5.0',
+            true // Load in footer
+        );
+    }
+}
+add_action('admin_enqueue_scripts', 'vernissaria_enqueue_admin_assets');

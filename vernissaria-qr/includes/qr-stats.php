@@ -19,7 +19,7 @@ function vernissaria_register_frontend_assets() {
         'vernissaria-chart-js',
         VERNISSARIA_QR_URL . 'assets/js/chart.min.js',
         array(),
-        '3.7.1',
+        '4.5.0',
         array(
             'strategy' => 'defer',
             'in_footer' => true
@@ -118,21 +118,26 @@ function vernissaria_qr_stats_shortcode($atts) {
         $output .= '<h3>' . esc_html__('QR Code Statistics', 'vernissaria-qr') . '</h3>';
     }
     
+    // Parse the actual API response structure
+    $scan_count = isset($stats['access_count']) ? intval($stats['access_count']) : 0;
+    $unique_visitors = isset($stats['summary']['unique_visitors']) ? intval($stats['summary']['unique_visitors']) : 0;
+    $countries_count = isset($stats['summary']['countries_count']) ? intval($stats['summary']['countries_count']) : 0;
+
     // Main stats
     $output .= '<div class="stats-overview">';
-    $output .= '<div class="stat-item"><span class="stat-value">' . esc_html($stats['scan_count']) . '</span><span class="stat-label">' . esc_html__('Total Scans', 'vernissaria-qr') . '</span></div>';
-    $output .= '<div class="stat-item"><span class="stat-value">' . esc_html($stats['unique_visitors']) . '</span><span class="stat-label">' . esc_html__('Unique Visitors', 'vernissaria-qr') . '</span></div>';
-    
-    if (!empty($stats['countries'])) {
-        $output .= '<div class="stat-item"><span class="stat-value">' . count($stats['countries']) . '</span><span class="stat-label">' . esc_html__('Countries', 'vernissaria-qr') . '</span></div>';
+    $output .= '<div class="stat-item"><span class="stat-value">' . esc_html($scan_count) . '</span><span class="stat-label">' . esc_html__('Total Scans', 'vernissaria-qr') . '</span></div>';
+    $output .= '<div class="stat-item"><span class="stat-value">' . esc_html($unique_visitors) . '</span><span class="stat-label">' . esc_html__('Unique Visitors', 'vernissaria-qr') . '</span></div>';
+
+    if ($countries_count > 0) {
+        $output .= '<div class="stat-item"><span class="stat-value">' . esc_html($countries_count) . '</span><span class="stat-label">' . esc_html__('Countries', 'vernissaria-qr') . '</span></div>';
     }
-    
+
     $output .= '</div>';
-    
+
     // Last scanned info
     if (!empty($stats['updated_at'])) {
         $last_scan = date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($stats['updated_at']));
-        $output .= '<p class="last-scanned">' . esc_html__('Last scanned', 'vernissaria-qr') . ': ' . $last_scan . '</p>';
+        $output .= '<p class="last-scanned">' . esc_html__('Last scanned', 'vernissaria-qr') . ': ' . esc_html($last_scan) . '</p>';
     }
     
     // Add device chart
@@ -142,29 +147,41 @@ function vernissaria_qr_stats_shortcode($atts) {
         $output .= '<canvas id="' . esc_attr($chart_id) . '-devices"></canvas>';
         $output .= '</div>';
         
-        // Add browser chart if we have data
-        if (!empty($stats['browsers'])) {
-            $output .= '<div class="chart-wrapper">';
-            $output .= '<canvas id="' . esc_attr($chart_id) . '-browsers"></canvas>';
-            $output .= '</div>';
-        }
+        // Add browser chart
+        $output .= '<div class="chart-wrapper">';
+        $output .= '<canvas id="' . esc_attr($chart_id) . '-browsers"></canvas>';
+        $output .= '</div>';
         $output .= '</div>';
         
-        // Prepare chart data for inline script
+        // Parse device data from recent_accesses
         $device_data = array(
-            'mobile' => intval($stats['devices']['mobile']),
-            'tablet' => intval($stats['devices']['tablet']),
-            'desktop' => intval($stats['devices']['desktop'])
+            'mobile' => 0,
+            'tablet' => 0,
+            'desktop' => 0
         );
         
-        $browser_data = array();
-        if (!empty($stats['browsers'])) {
-            $i = 0;
-            foreach($stats['browsers'] as $browser => $count) {
-                $browser_data[$browser] = intval($count);
-                $i++;
-                if ($i >= 5) break; // Limit to top 5 browsers
+        // Count devices from recent_accesses array
+        if (!empty($stats['recent_accesses']) && is_array($stats['recent_accesses'])) {
+            foreach ($stats['recent_accesses'] as $access) {
+                $device_type = isset($access['device_type']) ? $access['device_type'] : 'desktop';
+                if (isset($device_data[$device_type])) {
+                    $device_data[$device_type]++;
+                }
             }
+        }
+        
+        // Parse browser data from recent_accesses
+        $browser_data = array();
+        if (!empty($stats['recent_accesses']) && is_array($stats['recent_accesses'])) {
+            $browser_counts = array();
+            foreach ($stats['recent_accesses'] as $access) {
+                $browser = isset($access['browser_name']) ? ucfirst($access['browser_name']) : 'Unknown';
+                $browser_counts[$browser] = isset($browser_counts[$browser]) ? $browser_counts[$browser] + 1 : 1;
+            }
+            
+            // Sort by count and take top 5
+            arsort($browser_counts);
+            $browser_data = array_slice($browser_counts, 0, 5, true);
         }
         
         // Prepare JavaScript data
@@ -181,52 +198,68 @@ function vernissaria_qr_stats_shortcode($atts) {
             )
         );
         
-        // Add inline JavaScript for charts using wp_add_inline_script
+        // Updated chart JavaScript for Chart.js v4
         $chart_js = '
         document.addEventListener("DOMContentLoaded", function() {
             var chartData = ' . wp_json_encode($chart_data) . ';
             
+            console.log("Chart data:", chartData);
+            
+            // Check if Chart.js is loaded
+            if (typeof Chart === "undefined") {
+                console.error("Chart.js is not loaded");
+                return;
+            }
+            
             // Device chart
-            new Chart(document.getElementById(chartData.chartId + "-devices"), {
-                type: "doughnut",
-                data: {
-                    labels: [chartData.labels.mobile, chartData.labels.tablet, chartData.labels.desktop],
-                    datasets: [{
-                        data: [chartData.deviceData.mobile, chartData.deviceData.tablet, chartData.deviceData.desktop],
-                        backgroundColor: ["#4e73df", "#1cc88a", "#36b9cc"]
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: {
-                            position: "bottom"
-                        },
-                        title: {
-                            display: true,
-                            text: chartData.labels.deviceTypes
+            var deviceCanvas = document.getElementById(chartData.chartId + "-devices");
+            if (deviceCanvas) {
+                new Chart(deviceCanvas, {
+                    type: "doughnut",
+                    data: {
+                        labels: [chartData.labels.mobile, chartData.labels.tablet, chartData.labels.desktop],
+                        datasets: [{
+                            data: [chartData.deviceData.mobile, chartData.deviceData.tablet, chartData.deviceData.desktop],
+                            backgroundColor: ["#4e73df", "#1cc88a", "#36b9cc"],
+                            borderWidth: 0
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: "bottom"
+                            },
+                            title: {
+                                display: true,
+                                text: chartData.labels.deviceTypes
+                            }
                         }
                     }
-                }
-            });
+                });
+            }
             
-            // Browser chart if we have data
-            if (Object.keys(chartData.browserData).length > 0) {
+            // Browser chart
+            var browserCanvas = document.getElementById(chartData.chartId + "-browsers");
+            if (browserCanvas && Object.keys(chartData.browserData).length > 0) {
                 var browserLabels = Object.keys(chartData.browserData);
                 var browserValues = Object.values(chartData.browserData);
                 var browserColors = ["#4e73df", "#1cc88a", "#36b9cc", "#f6c23e", "#e74a3b"];
                 
-                new Chart(document.getElementById(chartData.chartId + "-browsers"), {
+                new Chart(browserCanvas, {
                     type: "doughnut",
                     data: {
                         labels: browserLabels,
                         datasets: [{
                             data: browserValues,
-                            backgroundColor: browserColors.slice(0, browserLabels.length)
+                            backgroundColor: browserColors.slice(0, browserLabels.length),
+                            borderWidth: 0
                         }]
                     },
                     options: {
                         responsive: true,
+                        maintainAspectRatio: false,
                         plugins: {
                             legend: {
                                 position: "bottom"
@@ -246,19 +279,19 @@ function vernissaria_qr_stats_shortcode($atts) {
     }
     
     // Add recent scans table if enabled
-    if ($atts['show_recent'] === 'yes' && !empty($stats['recent_scans'])) {
+    if ($atts['show_recent'] === 'yes' && !empty($stats['recent_accesses'])) {
         $output .= '<div class="recent-scans">';
         $output .= '<h4>' . esc_html__('Recent Scans', 'vernissaria-qr') . '</h4>';
         $output .= '<table class="qr-stats-table">';
         $output .= '<tr><th>' . esc_html__('Date/Time', 'vernissaria-qr') . '</th><th>' . esc_html__('Country', 'vernissaria-qr') . '</th><th>' . esc_html__('Device', 'vernissaria-qr') . '</th><th>' . esc_html__('Browser', 'vernissaria-qr') . '</th></tr>';
         
-        foreach ($stats['recent_scans'] as $scan) {
-            $scan_time = date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($scan['timestamp']));
+        foreach ($stats['recent_accesses'] as $access) {
+            $scan_time = date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($access['access_time']));
             $output .= '<tr>';
             $output .= '<td>' . esc_html($scan_time) . '</td>';
-            $output .= '<td>' . esc_html($scan['country']) . '</td>';
-            $output .= '<td>' . esc_html(ucfirst($scan['device_type'])) . '</td>';
-            $output .= '<td>' . esc_html($scan['browser']) . '</td>';
+            $output .= '<td>' . esc_html($access['country']) . '</td>';
+            $output .= '<td>' . esc_html(ucfirst($access['device_type'])) . '</td>';
+            $output .= '<td>' . esc_html(ucfirst($access['browser_name'])) . '</td>';
             $output .= '</tr>';
         }
         

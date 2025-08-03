@@ -17,7 +17,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('VERNISSARIA_QR_VERSION', '1.3.4');
+define('VERNISSARIA_QR_VERSION', '1.3.5');
 define('VERNISSARIA_QR_PATH', plugin_dir_path(__FILE__));
 define('VERNISSARIA_QR_URL', plugin_dir_url(__FILE__));
 
