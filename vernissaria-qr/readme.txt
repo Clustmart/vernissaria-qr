@@ -3,7 +3,7 @@ Contributors: vernissaria
 Tags: qr-code, analytics, art, gallery, exhibition
 Requires at least: 5.0
 Tested up to: 6.8
-Stable tag: 1.3.5
+Stable tag: 1.3.6
 Requires PHP: 7.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -97,6 +97,10 @@ Use the style parameter in the shortcode: style="default" or style="dark"
 
 == Changelog ==
 
+= 1.3.6 =
+* Updated chart.min.js library to latest version (4.5.0)
+* Fixed the graphical representation of traffic statistics has been corrected, by adapting it to the API interface provided by qraft.link 
+
 = 1.3.5 =
 * Added QR Code Printing Feature: New "Print QR Codes" tab in settings page
 * Generate printable PDF containing all QR codes for your domain
@@ -131,6 +135,9 @@ Use the style parameter in the shortcode: style="default" or style="dark"
 * Initial release
 
 == Upgrade Notice ==
+
+= 1.3.6 =
+The graphical statistical representation has been fixed. Update recommended for all users.
 
 = 1.3.5 =
 New QR code printing feature allows you to generate professional PDFs with all your QR codes for printing and physical display. Update recommended for all users.

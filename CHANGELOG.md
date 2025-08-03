@@ -28,6 +28,11 @@ All endpoints now follow RESTful conventions
 Consistent URL structure with proper resource grouping (/qr/* for QR operations, /stats/* for statistics)
 Proper HTTP methods (POST for creation, PATCH for updates, GET for retrieval)
 
+[1.3.6] - 04-08-2025
+### Changed
+    - chart.min.js library to latest version (4.5.0)
+    - The graphical representation of traffic statistics has been corrected, by adapting it to the API interface provided by qraft.link 
+
 [1.3.5] - 02-08-2025
 ### Added
 - QR Code Printing Feature: New "Print QR Codes" tab in settings page

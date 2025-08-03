@@ -3,7 +3,7 @@
  * Plugin Name: Vernissaria QR
  * Plugin URI: https://github.com/Clustmart/vernissaria-qr
  * Description: Generate QR codes for artworks and display statistics for visitor engagement.
- * Version: 1.3.5
+ * Version: 1.3.6
  * Author: Vernissaria
  * Author URI: https://vernissaria.de
  * License: GPLv2
@@ -17,7 +17,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('VERNISSARIA_QR_VERSION', '1.3.5');
+define('VERNISSARIA_QR_VERSION', '1.3.6');
 define('VERNISSARIA_QR_PATH', plugin_dir_path(__FILE__));
 define('VERNISSARIA_QR_URL', plugin_dir_url(__FILE__));
 
