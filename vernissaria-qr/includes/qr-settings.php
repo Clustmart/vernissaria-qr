@@ -88,8 +88,9 @@ add_action('admin_enqueue_scripts', 'vernissaria_enqueue_print_assets');
  */
 function vernissaria_handle_pdf_generation() {
     // Verify nonce
-    if (!wp_verify_nonce($_POST['nonce'], 'vernissaria_qr_print_nonce')) {
-        wp_die('Security check failed');
+    $nonce = isset($_POST['nonce']) ? sanitize_text_field(wp_unslash($_POST['nonce'])) : '';
+    if (!wp_verify_nonce($nonce, 'vernissaria_qr_print_nonce')) {
+        wp_die(esc_html__('Security check failed', 'vernissaria-qr'));
     }
     
     // Check permissions
@@ -97,8 +98,8 @@ function vernissaria_handle_pdf_generation() {
         wp_die('Insufficient permissions');
     }
     
-    $qr_size = sanitize_text_field($_POST['qr_size']);
-    $paper_size = sanitize_text_field($_POST['paper_size']);
+    $qr_size = isset($_POST['qr_size']) ? sanitize_text_field(wp_unslash($_POST['qr_size'])) : '';
+    $paper_size = isset($_POST['paper_size']) ? sanitize_text_field(wp_unslash($_POST['paper_size'])) : '';
     $domain = vernissaria_get_current_domain();
     
     // Validate inputs
@@ -159,20 +160,29 @@ function vernissaria_call_pdf_api($api_url, $domain, $qr_size, $paper_size) {
     $response = wp_remote_request($endpoint, $args);
     
     if (is_wp_error($response)) {
-        throw new Exception('API connection failed: ' . $response->get_error_message());
+        return array(
+            'success' => false,
+            'message' => __('API connection failed:', 'vernissaria-qr') . ' ' . $response->get_error_message(),
+        );
     }
     
     $response_code = wp_remote_retrieve_response_code($response);
     $response_body = wp_remote_retrieve_body($response);
     
     if ($response_code !== 200) {
-        throw new Exception(vernissaria_api_error_message($response));
+        return array(
+            'success' => false,
+            'message' => vernissaria_api_error_message($response),
+        );
     }
     
     $data = json_decode($response_body, true);
     
     if (!$data) {
-        throw new Exception('Invalid API response format');
+        return array(
+            'success' => false,
+            'message' => __('Invalid API response format', 'vernissaria-qr'),
+        );
     }
     
     if (!$data['success']) {
@@ -190,7 +200,7 @@ function vernissaria_call_pdf_api($api_url, $domain, $qr_size, $paper_size) {
  */
 function vernissaria_download_and_save_pdf($pdf_info) {
     $pdf_url = $pdf_info['pdf_url'];
-    $filename = basename(parse_url($pdf_url, PHP_URL_PATH));
+    $filename = sanitize_file_name(basename((string) wp_parse_url($pdf_url, PHP_URL_PATH)));
     
     // Download the PDF
     $response = wp_remote_get($pdf_url, array(
@@ -220,7 +230,7 @@ function vernissaria_download_and_save_pdf($pdf_info) {
     $attachment = array(
         'guid' => $file_url,
         'post_mime_type' => 'application/pdf',
-        'post_title' => 'Vernissaria QR Codes PDF - ' . date('Y-m-d H:i:s'),
+        'post_title' => 'Vernissaria QR Codes PDF - ' . wp_date('Y-m-d H:i:s'),
         'post_content' => '',
         'post_status' => 'inherit'
     );
@@ -250,7 +260,7 @@ function vernissaria_download_and_save_pdf($pdf_info) {
  */
 function vernissaria_get_current_domain() {
     $site_url = get_site_url();
-    $parsed_url = parse_url($site_url);
+    $parsed_url = wp_parse_url($site_url);
     return $parsed_url['host'];
 }
 
@@ -491,7 +501,10 @@ function vernissaria_render_print_tab() {
     ?>
     <div class="vernissaria-print-section">
         <h3><?php echo esc_html__('Generate Printable QR Codes PDF', 'vernissaria-qr'); ?></h3>
-        <p><?php echo sprintf(esc_html__('Generate a PDF containing all QR codes for your domain: %s', 'vernissaria-qr'), '<strong>' . esc_html($domain) . '</strong>'); ?></p>
+        <p><?php
+            /* translators: %s: the site's domain */
+            echo sprintf(esc_html__('Generate a PDF containing all QR codes for your domain: %s', 'vernissaria-qr'), '<strong>' . esc_html($domain) . '</strong>');
+        ?></p>
         
         <div id="vernissaria-print-messages" class="notice" style="display:none;">
             <p id="vernissaria-print-message-text"></p>
@@ -560,7 +573,8 @@ function vernissaria_render_settings_page() {
     }
     
     // Get active tab
-    $active_tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'general';
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only tab switch
+    $active_tab = isset($_GET['tab']) ? sanitize_key(wp_unslash($_GET['tab'])) : 'general';
     
     // Verify nonce for settings-updated parameter
     $settings_updated = false;
@@ -876,38 +890,6 @@ function vernissaria_add_dashboard_widgets() {
     }
 }
 add_action('wp_dashboard_setup', 'vernissaria_add_dashboard_widgets');
-
-/**
- * Debug function to check Chart.js loading
- * Add this temporarily to qr-settings.php
- */
-function vernissaria_debug_chartjs() {
-    // Check if we're on the dashboard
-    $screen = get_current_screen();
-    if ($screen && $screen->id === 'dashboard') {
-        // Add debug info to admin footer
-        add_action('admin_footer', function() {
-            ?>
-            <script>
-            console.log('=== Vernissaria Chart.js Debug ===');
-            console.log('Chart.js loaded:', typeof Chart !== 'undefined');
-            console.log('Canvas element exists:', document.getElementById('<?php echo 'vernissaria-visitor-chart-' . wp_rand(); ?>') !== null);
-            console.log('Enqueued scripts:', wp.hooks ? 'WP hooks available' : 'WP hooks not available');
-            
-            // List all loaded scripts
-            const scripts = document.querySelectorAll('script[src]');
-            const chartScript = Array.from(scripts).find(script => script.src.includes('chart.min.js'));
-            console.log('Chart.js script element:', chartScript);
-            
-            if (typeof Chart !== 'undefined') {
-                console.log('Chart.js version:', Chart.version);
-            }
-            </script>
-            <?php
-        });
-    }
-}
-add_action('current_screen', 'vernissaria_debug_chartjs');
 
 function vernissaria_enqueue_admin_assets($hook) {
     // Only enqueue on dashboard or plugin settings page

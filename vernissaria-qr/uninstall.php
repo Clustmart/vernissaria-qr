@@ -39,11 +39,11 @@ wp_clear_scheduled_hook('vernissaria_cleanup_transients');
 // Optionally remove uploaded QR codes - uncomment to enable
 // Note: This is destructive and will delete all QR code files
 
-$upload_dir = wp_upload_dir();
-$qr_dir = $upload_dir['basedir'] . '/qr-codes';
+$vernissaria_upload_dir = wp_upload_dir();
+$vernissaria_qr_dir = $vernissaria_upload_dir['basedir'] . '/qr-codes';
 
 // Only try to remove directory if it exists
-if (file_exists($qr_dir) && is_dir($qr_dir)) {
+if (file_exists($vernissaria_qr_dir) && is_dir($vernissaria_qr_dir)) {
     // Get WordPress filesystem
     global $wp_filesystem;
     if (empty($wp_filesystem)) {
@@ -53,6 +53,6 @@ if (file_exists($qr_dir) && is_dir($qr_dir)) {
     
     // Recursively delete the directory
     if ($wp_filesystem) {
-        $wp_filesystem->rmdir($qr_dir, true);
+        $wp_filesystem->rmdir($vernissaria_qr_dir, true);
     }
 }
