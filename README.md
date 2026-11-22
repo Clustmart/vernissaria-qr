@@ -1,5 +1,7 @@
 # Vernissaria QR Plugin
 
+> **From 15 January 2027 the Vernissaria API requires an API key.** Update to version 1.4.0 or newer, then open Settings → Vernissaria QR and click **Connect**. Printed QR codes keep working either way.
+
 A WordPress plugin that adds QR code generation capabilities with visitor analytics for artisans, art galleries, museums, and exhibitions.
 
 
@@ -16,15 +18,17 @@ Vernissaria QR seamlessly integrates with your WordPress site to help artists an
 - **Flexible Display Options**: Display analytics using shortcodes or PHP functions
 - **Manual Regeneration**: Easily regenerate QR codes through the admin interface
 - **Multi Post Type Support**: Enable QR codes for posts, pages, or custom post types
-- **Privacy Focused**: No personal visitor data is collected
+- **Secure API Connection**: one-click "Connect" gives each site its own API key, valid only for its domain
+- **Privacy-minded Statistics**: aggregate data only (country, device, browser), never visitor IP addresses
 
 
 ## Installation
 
 1. Upload the `vernissaria-qr` directory to your `/wp-content/plugins/` directory
 2. Activate the plugin through the 'Plugins' menu in WordPress
-3. Go to Settings → Vernissaria QR to configure which post types should have QR codes
-4. Start creating or editing posts to add artwork details and generate QR codes
+3. Go to Settings → Vernissaria QR and click **Connect** to get your free API key (required from 15 January 2027)
+4. Configure which post types should have QR codes
+5. Start creating or editing posts to add artwork details and generate QR codes
 
 ## Usage
 

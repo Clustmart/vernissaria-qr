@@ -1,5 +1,21 @@
 # Changelog
 
+[1.4.0] - 2026-11-22
+
+## Added
+- "Connect" button under Settings → Vernissaria QR (one-click). The site proves domain control to the API and gets its own API key, valid only for its domain. The API requires it from 2027-01-15.
+- `includes/qr-api.php`: key storage (`vernissaria_api_key` option, not autoloaded); `vernissaria_api_args()` adds `X-API-Key` to every API request; public REST route `vernissaria/v1/connect-challenge` (serves the short-lived one-time code during Connect).
+- Admin notice while not connected, shown only on the Dashboard, Plugins and settings screens. It can be postponed for 14 days and becomes an error after the deadline.
+- readme.txt: "External services" section, FAQ about API keys, upgrade notice.
+
+## Changed
+- API errors (e.g. a missing or invalid key) are shown to admins (PDF dialog, visitor-stats widget) instead of bare status codes. The stats shortcode shows visitors a neutral message for auth errors.
+- Privacy wording corrected: the API processes visitor IPs for location and unique counts, and never shows them.
+
+## Fixed
+- `vernissaria_log()` called itself endlessly, so every publish crashed with a fatal error when WP_DEBUG was on (bug since 1.3.4).
+
+
 [1.3.0] - 27-04-2025
 
 ## Changed
