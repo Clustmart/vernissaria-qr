@@ -24,6 +24,9 @@ delete_option('vernissaria_show_visitor_stats_widget');
 delete_option('vernissaria_api_url');
 delete_option('vernissaria_qr_stats_version');
 delete_option('vernissaria_domain');
+delete_option('vernissaria_api_key');
+delete_option('vernissaria_api_key_domain');
+delete_metadata('user', 0, 'vernissaria_key_notice_dismissed_until', '', true);
 
 // Clean up all plugin-specific transients
 // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Direct query required for uninstallation cleanup

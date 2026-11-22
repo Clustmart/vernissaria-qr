@@ -18,14 +18,16 @@ function vernissaria_log($message, $level = 'info') {
     $prefix = '[Vernissaria QR] ';
     switch ($level) {
         case 'error':
-            vernissaria_log($prefix . 'ERROR: ' . $message);
+            $prefix .= 'ERROR: ';
             break;
         case 'warning':
-            vernissaria_log($prefix . 'WARNING: ' . $message);
+            $prefix .= 'WARNING: ';
             break;
-        default:
-            vernissaria_log($prefix . $message);
     }
+    // Only when WP_DEBUG is on (checked above). Until 1.4.0 this function
+    // called itself instead and crashed every publish on debug-enabled sites.
+    // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+    error_log($prefix . $message);
 }
 
 /**
@@ -127,14 +129,14 @@ function vernissaria_update_qr_metadata($post, $redirect_key) {
 
     
     // WordPress doesn't natively support PATCH, so we use a custom approach
-    $response = wp_remote_request($api_endpoint, array(
+    $response = wp_remote_request($api_endpoint, vernissaria_api_args(array(
         'method' => 'PATCH',
         'body' => $data,
         'headers' => array(
             'Content-Type' => 'application/x-www-form-urlencoded'
         ),
         'timeout' => 15
-    ));
+    )));
     
     if (is_wp_error($response)) {
         vernissaria_log('Vernissaria: Failed to update QR metadata - ' . $response->get_error_message(), 'error');
@@ -361,9 +363,9 @@ function vernissaria_generate_qr_code($post_id, $url, $label, $campaign) {
     vernissaria_log('Vernissaria: Generating QR code for post ID ' . $post_id . ' with URL: ' . $api_endpoint);
     
     // Make GET request to the API
-    $response = wp_remote_get($api_endpoint, array(
+    $response = wp_remote_get($api_endpoint, vernissaria_api_args(array(
         'timeout' => 15
-    ));
+    )));
 
 
     // Process the response

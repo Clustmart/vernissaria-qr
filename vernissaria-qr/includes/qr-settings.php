@@ -146,7 +146,7 @@ function vernissaria_call_pdf_api($api_url, $domain, $qr_size, $paper_size) {
         'paper_size' => $paper_size
     ));
     
-    $args = array(
+    $args = vernissaria_api_args(array(
         'method' => 'POST',
         'body' => $body,
         'headers' => array(
@@ -154,7 +154,7 @@ function vernissaria_call_pdf_api($api_url, $domain, $qr_size, $paper_size) {
             'Accept' => 'application/json'
         ),
         'timeout' => 30
-    );
+    ));
     
     $response = wp_remote_request($endpoint, $args);
     
@@ -166,7 +166,7 @@ function vernissaria_call_pdf_api($api_url, $domain, $qr_size, $paper_size) {
     $response_body = wp_remote_retrieve_body($response);
     
     if ($response_code !== 200) {
-        throw new Exception('API returned error code: ' . $response_code);
+        throw new Exception(vernissaria_api_error_message($response));
     }
     
     $data = json_decode($response_body, true);
@@ -598,6 +598,7 @@ function vernissaria_render_settings_page() {
         </h2>
         
         <?php if ($active_tab == 'general'): ?>
+            <?php vernissaria_render_connection_box(); ?>
             <form action="options.php" method="post">
                 <?php
                 settings_fields('vernissaria_settings');
@@ -688,7 +689,7 @@ function vernissaria_visitor_stats_widget() {
     $endpoint = $api_url . '/stats/daily?days=30&domain='. urlencode($domain);
     
     // Make API request
-    $response = wp_remote_get($endpoint);
+    $response = wp_remote_get($endpoint, vernissaria_api_args());
     
     // Check for errors
     if (is_wp_error($response)) {
@@ -699,7 +700,7 @@ function vernissaria_visitor_stats_widget() {
     // Check status code
     $status_code = wp_remote_retrieve_response_code($response);
     if ($status_code !== 200) {
-        echo '<p>' . esc_html__('Error fetching visitor statistics', 'vernissaria-qr') . ' (' . intval($status_code) . ')</p>';
+        echo '<p>' . esc_html__('Error fetching visitor statistics', 'vernissaria-qr') . ': ' . esc_html(vernissaria_api_error_message($response)) . '</p>';
         return;
     }
     

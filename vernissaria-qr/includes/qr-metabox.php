@@ -97,7 +97,7 @@ function vernissaria_get_qr_scan_count($redirect_key) {
     $api_url = get_option('vernissaria_api_url', 'https://vernissaria.qraft.link');
     $endpoint = $api_url . '/qr/' . $redirect_key;
     
-    $response = wp_remote_get($endpoint);
+    $response = wp_remote_get($endpoint, vernissaria_api_args());
     
     // Check for errors
     if (is_wp_error($response) || wp_remote_retrieve_response_code($response) !== 200) {

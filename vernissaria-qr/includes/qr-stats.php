@@ -73,7 +73,7 @@ function vernissaria_qr_stats_shortcode($atts) {
     $endpoint = add_query_arg('domain', $site_domain, $endpoint);
     
     // Make API request
-    $response = wp_remote_get($endpoint);
+    $response = wp_remote_get($endpoint, vernissaria_api_args());
     
     // Check for errors
     if (is_wp_error($response)) {
@@ -83,12 +83,12 @@ function vernissaria_qr_stats_shortcode($atts) {
     // Check status code
     $status_code = wp_remote_retrieve_response_code($response);
     if ($status_code !== 200) {
-        $error_message = wp_remote_retrieve_response_message($response);
-        $body = json_decode(wp_remote_retrieve_body($response), true);
-        if (isset($body['detail'])) {
-            $error_message = $body['detail'];
+        // Visitors see this page: don't show API-key details to them.
+        if (vernissaria_api_is_auth_error($response)) {
+            return '<p>' . esc_html__('Statistics are currently unavailable.', 'vernissaria-qr') . '</p>';
         }
-        return '<p>' . esc_html__('Error', 'vernissaria-qr') . ': ' . $error_message . ' (' . esc_html__('Code', 'vernissaria-qr') . ': ' . $status_code . ')</p>';
+        $error_message = vernissaria_api_error_message($response);
+        return '<p>' . esc_html__('Error', 'vernissaria-qr') . ': ' . esc_html($error_message) . ' (' . esc_html__('Code', 'vernissaria-qr') . ': ' . intval($status_code) . ')</p>';
     }
     
     // Parse response
