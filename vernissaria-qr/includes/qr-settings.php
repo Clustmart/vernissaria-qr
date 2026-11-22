@@ -230,7 +230,7 @@ function vernissaria_download_and_save_pdf($pdf_info) {
     $attachment = array(
         'guid' => $file_url,
         'post_mime_type' => 'application/pdf',
-        'post_title' => 'Vernissaria QR Codes PDF - ' . wp_date('Y-m-d H:i:s'),
+        'post_title' => 'Vernissaria QR Codes PDF - ' . current_time('Y-m-d H:i:s'),
         'post_content' => '',
         'post_status' => 'inherit'
     );
