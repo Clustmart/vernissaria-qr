@@ -40,3 +40,6 @@ intermediate
 .idea
 cache
 vernissaria-qr.zip
+
+# Release builds (scripts/release-wporg.sh)
+dist/
